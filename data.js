@@ -10,7 +10,7 @@ const tools = [
         path: "kiss_my_AES.html"
     },
     {
-        title: "Simple OTP System",
+        title: "Simple OTP Encryption",
         description: "A simple tool for one time pad (OTP) encryption/decryption and key generation",
         path: "otp.html"
     }
