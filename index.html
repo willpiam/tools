@@ -10,21 +10,21 @@
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f5f5f5;
-            color: #333;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
         }
         h1 {
             text-align: center;
             margin-bottom: 30px;
-            color: #2c3e50;
-            border-bottom: 2px solid #3498db;
+            color: #60a5fa;
+            border-bottom: 2px solid #3b82f6;
             padding-bottom: 10px;
         }
         .tools-container {
-            background-color: white;
+            background-color: #2d2d2d;
             border-radius: 8px;
             padding: 25px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
         }
         ul {
             list-style-type: none;
@@ -34,43 +34,71 @@
             margin-bottom: 15px;
             padding: 15px;
             border-radius: 6px;
-            background-color: #f9f9f9;
+            background-color: #363636;
             transition: transform 0.2s, box-shadow 0.2s;
         }
         li:hover {
             transform: translateY(-3px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+            background-color: #404040;
         }
         a {
             text-decoration: none;
-            color: #3498db;
+            color: #60a5fa;
             font-size: 18px;
             display: block;
             transition: color 0.2s;
         }
         a:hover {
-            color: #2980b9;
+            color: #93c5fd;
         }
         .tool-description {
             margin-top: 8px;
-            color: #7f8c8d;
+            color: #9ca3af;
             font-size: 14px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .footer a {
+            display: inline;
+            font-size: inherit;
+            color: #6b7280;
+        }
+        
+        .footer a:hover {
+            color: #9ca3af;
         }
     </style>
 </head>
 <body>
     <h1>$computerman's tools</h1>
     <div class="tools-container">
-        <ul>
-            <li>
-                <a href="textandhex.html" target="_blank" rel="noopener noreferrer">Text and Hex Converter</a>
-                <div class="tool-description">Convert between text and hexadecimal formats</div>
-            </li>
-            <li>
-                <a href="kiss_my_AES.html" target="_blank" rel="noopener noreferrer">Kiss My AES</a>
-                <div class="tool-description">A simple tool to encrypt and decrypt messages using AES. K.I.S.S - Keep It Simple Stupid</div>
-            </li>
+        <ul id="tools-list">
+            <!-- Tools will be loaded dynamically -->
         </ul>
     </div>
+
+    <div class="footer">
+        <a href="https://github.com/willpiam/tools" target="_blank" rel="noopener noreferrer">Source code available on GitHub</a>
+    </div>
+
+    <script src="data.js"></script>
+    <script>
+        const toolsList = document.getElementById('tools-list');
+        tools.forEach(tool => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <a href="${tool.path}" target="_blank" rel="noopener noreferrer">${tool.title}</a>
+                <div class="tool-description">${tool.description}</div>
+            `;
+            toolsList.appendChild(li);
+        });
+    </script>
 </body>
 </html>

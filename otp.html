@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One-Time Pad Encryption</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+            height: 100px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .button-group {
+            display: flex;
+            justify-content: center;
+            margin: 15px 0;
+        }
+        .explanation {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .output {
+            background-color: #eee;
+            padding: 10px;
+            border-radius: 4px;
+            min-height: 100px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .tab {
+            padding: 10px 15px;
+            background-color: #ddd;
+            border: none;
+            cursor: pointer;
+        }
+        .tab.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        #keyBits, #keyOutput {
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>One-Time Pad Encryption System</h1>
+        
+        <div class="explanation">
+            <p>A one-time pad is an encryption technique that cannot be cracked if used correctly. 
+            It requires a pre-shared key that is:</p>
+            <ul>
+                <li>Truly random</li>
+                <li>At least as long as the plaintext</li>
+                <li>Never reused in whole or part</li>
+                <li>Kept completely secret</li>
+            </ul>
+            <p>This implementation uses XOR operations to combine the plaintext with the key.</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="openTab(event, 'encryptTab')">Encrypt</button>
+            <button class="tab" onclick="openTab(event, 'decryptTab')">Decrypt</button>
+            <button class="tab" onclick="openTab(event, 'keyGenTab')">Generate Key</button>
+        </div>
+
+        <div id="encryptTab" class="tab-content active">
+            <div class="section">
+                <h2>Encrypt Message</h2>
+                <label for="plaintext">Plaintext:</label>
+                <textarea id="plaintext" placeholder="Enter text to encrypt"></textarea>
+                
+                <label for="encryptKey">One-Time Pad Key (hex):</label>
+                <textarea id="encryptKey" placeholder="Enter or paste your key in hex format"></textarea>
+                
+                <div class="button-group">
+                    <button onclick="encrypt()">Encrypt</button>
+                </div>
+                
+                <label for="encryptOutput">Encrypted Output (hex):</label>
+                <div id="encryptOutput" class="output"></div>
+            </div>
+        </div>
+
+        <div id="decryptTab" class="tab-content">
+            <div class="section">
+                <h2>Decrypt Message</h2>
+                <label for="ciphertext">Ciphertext (hex):</label>
+                <textarea id="ciphertext" placeholder="Enter encrypted text in hex format"></textarea>
+                
+                <label for="decryptKey">One-Time Pad Key (hex):</label>
+                <textarea id="decryptKey" placeholder="Enter or paste your key in hex format"></textarea>
+                
+                <div class="button-group">
+                    <button onclick="decrypt()">Decrypt</button>
+                </div>
+                
+                <label for="decryptOutput">Decrypted Output:</label>
+                <div id="decryptOutput" class="output"></div>
+            </div>
+        </div>
+
+        <div id="keyGenTab" class="tab-content">
+            <div class="section">
+                <h2>Generate Random One-Time Pad Key</h2>
+                <label for="keyLength">Key Length (bytes):</label>
+                <input type="number" id="keyLength" value="32" min="1" max="1024">
+                
+                <div class="button-group">
+                    <button onclick="generateKey()">Generate Random Key</button>
+                </div>
+                
+                <label for="keyOutput">Generated Key (hex):</label>
+                <div id="keyOutput" class="output"></div>
+                
+                <div class="button-group">
+                    <button onclick="copyToClipboard('keyOutput')">Copy Key</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Function to open a specific tab
+        function openTab(evt, tabName) {
+            const tabContents = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove("active");
+            }
+            
+            const tabs = document.getElementsByClassName("tab");
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove("active");
+            }
+            
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
+        }
+        
+        // Function to generate a random one-time pad key
+        function generateKey() {
+            const length = parseInt(document.getElementById("keyLength").value);
+            if (isNaN(length) || length <= 0 || length > 1024) {
+                alert("Please enter a valid key length between 1 and 1024 bytes.");
+                return;
+            }
+            
+            const array = new Uint8Array(length);
+            window.crypto.getRandomValues(array);
+            
+            const hexKey = Array.from(array)
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+            
+            document.getElementById("keyOutput").textContent = hexKey;
+        }
+        
+        // Function to encrypt using one-time pad
+        function encrypt() {
+            const plaintext = document.getElementById("plaintext").value;
+            if (!plaintext) {
+                alert("Please enter text to encrypt.");
+                return;
+            }
+            
+            // Convert plaintext to Uint8Array
+            const plaintextBytes = new TextEncoder().encode(plaintext);
+            
+            // Get the key
+            const key = document.getElementById("encryptKey").value.trim();
+            if (!key) {
+                alert("Please provide a one-time pad key.");
+                return;
+            }
+            
+            // Convert hex key to Uint8Array
+            const keyBytes = hexToBytes(key);
+            
+            // Check if key is long enough
+            if (keyBytes.length < plaintextBytes.length) {
+                alert("Warning: Key is shorter than the message. For true one-time pad security, the key must be at least as long as the message.");
+            }
+            
+            // Perform XOR operation
+            const cipherBytes = new Uint8Array(plaintextBytes.length);
+            for (let i = 0; i < plaintextBytes.length; i++) {
+                cipherBytes[i] = plaintextBytes[i] ^ keyBytes[i % keyBytes.length];
+            }
+            
+            // Convert to hex for display
+            const cipherHex = bytesToHex(cipherBytes);
+            document.getElementById("encryptOutput").textContent = cipherHex;
+        }
+        
+        // Function to decrypt using one-time pad
+        function decrypt() {
+            const ciphertext = document.getElementById("ciphertext").value.trim();
+            if (!ciphertext) {
+                alert("Please enter ciphertext to decrypt.");
+                return;
+            }
+            
+            // Convert hex ciphertext to Uint8Array
+            const cipherBytes = hexToBytes(ciphertext);
+            
+            // Get the key
+            const key = document.getElementById("decryptKey").value.trim();
+            if (!key) {
+                alert("Please provide a one-time pad key.");
+                return;
+            }
+            
+            // Convert hex key to Uint8Array
+            const keyBytes = hexToBytes(key);
+            
+            // Check if key is long enough
+            if (keyBytes.length < cipherBytes.length) {
+                alert("Warning: Key is shorter than the ciphertext. This may lead to incorrect decryption or reduced security.");
+            }
+            
+            // Perform XOR operation (same as encryption, as XOR is its own inverse)
+            const plaintextBytes = new Uint8Array(cipherBytes.length);
+            for (let i = 0; i < cipherBytes.length; i++) {
+                plaintextBytes[i] = cipherBytes[i] ^ keyBytes[i % keyBytes.length];
+            }
+            
+            // Convert back to text
+            try {
+                const plaintext = new TextDecoder().decode(plaintextBytes);
+                document.getElementById("decryptOutput").textContent = plaintext;
+            } catch (e) {
+                alert("Decryption error: The result doesn't appear to be valid text. Check your key and ciphertext.");
+                document.getElementById("decryptOutput").textContent = "Decryption error";
+            }
+        }
+        
+        // Helper function to convert hex string to bytes
+        function hexToBytes(hex) {
+            // Remove any non-hex characters
+            hex = hex.replace(/[^0-9A-Fa-f]/g, '');
+            
+            // If odd length, pad with a leading zero
+            if (hex.length % 2 !== 0) {
+                hex = '0' + hex;
+            }
+            
+            const bytes = new Uint8Array(hex.length / 2);
+            for (let i = 0; i < hex.length; i += 2) {
+                bytes[i/2] = parseInt(hex.substr(i, 2), 16);
+            }
+            return bytes;
+        }
+        
+        // Helper function to convert bytes to hex string
+        function bytesToHex(bytes) {
+            return Array.from(bytes)
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        }
+        
+        // Function to copy text to clipboard
+        function copyToClipboard(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(text)
+                .then(() => alert("Copied to clipboard!"))
+                .catch(err => alert("Failed to copy: " + err));
+        }
+    </script>
+</body>
+</html>
