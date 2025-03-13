@@ -1,4 +1,4 @@
-# $computermans's Tools
+# $computerman's Tools
 
 A collection of tools I find useful!
 
