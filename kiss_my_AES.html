@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KISS my AES</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            margin: 10px 0;
+        }
+        .toggle-container {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h2>KISS my AES</h2>
+    
+    <div class="toggle-container">
+        <label>Mode: </label>
+        <input type="checkbox" id="modeToggle">
+        <span id="modeText">Encrypt</span>
+    </div>
+
+    <input type="password" id="password" placeholder="Enter password" style="width: 100%;">
+    
+    <textarea id="inputText" placeholder="Enter text to encrypt/decrypt"></textarea>
+    
+    <button onclick="processText()">Process</button>
+    <!-- The new Copy button -->
+    <button onclick="copyResult()">Copy</button>
+    
+    <textarea id="outputText" placeholder="Result will appear here" readonly></textarea>
+
+    <script>
+        const modeToggle = document.getElementById('modeToggle');
+        const modeText = document.getElementById('modeText');
+        
+        modeToggle.addEventListener('change', function() {
+            modeText.textContent = this.checked ? 'Decrypt' : 'Encrypt';
+        });
+
+        function processText() {
+            const password = document.getElementById('password').value;
+            const input = document.getElementById('inputText').value;
+            const isDecrypt = modeToggle.checked;
+            let output;
+
+            if (!password || !input) {
+                alert('Please enter both password and text');
+                return;
+            }
+
+            try {
+                if (isDecrypt) {
+                    // Decrypt
+                    output = CryptoJS.AES.decrypt(input, password).toString(CryptoJS.enc.Utf8);
+                    if (!output) throw new Error('Decryption failed - wrong password or invalid ciphertext');
+                } else {
+                    // Encrypt
+                    output = CryptoJS.AES.encrypt(input, password).toString();
+                }
+                document.getElementById('outputText').value = output;
+            } catch (error) {
+                alert('Error: ' + error.message);
+                document.getElementById('outputText').value = '';
+            }
+        }
+
+        // Simple function to copy the result
+        function copyResult() {
+            const outputText = document.getElementById('outputText');
+            outputText.select();
+            document.execCommand('copy');
+            alert('Result copied to clipboard!');
+        }
+    </script>
+</body>
+</html>
