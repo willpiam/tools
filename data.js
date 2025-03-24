@@ -13,5 +13,10 @@ const tools = [
         title: "Simple OTP Encryption",
         description: "A simple tool for one time pad (OTP) encryption/decryption and key generation",
         path: "otp.html"
+    },
+    {
+        title: "Password Generator",
+        description: "Generate secure passwords with customizable options",
+        path: "passwordmaker.html"
     }
 ];
