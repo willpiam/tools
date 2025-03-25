@@ -10,5 +10,7 @@ More of my projects can be found at [projects.williamdoyle.ca](https://projects.
 
 ## Want to send me crypto? 
 
-Most of most of my crypto addresses can be found here [williamdoyle.eth](https://app.ens.domains/williamdoyle.eth)
+Most of my crypto addresses can be found here [williamdoyle.eth](https://app.ens.domains/williamdoyle.eth)
+
+I also have a adahandle [$williammhot](https://handle.me/williamhot)
 
