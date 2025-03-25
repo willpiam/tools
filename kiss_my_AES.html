@@ -29,6 +29,11 @@
         <span id="modeText">Encrypt</span>
     </div>
 
+    <div class="toggle-container">
+        <label>Show password: </label>
+        <input type="checkbox" id="showPasswordToggle">
+    </div>
+
     <input type="password" id="password" placeholder="Enter password" style="width: 100%;">
     
     <textarea id="inputText" placeholder="Enter text to encrypt/decrypt"></textarea>
@@ -45,6 +50,13 @@
         
         modeToggle.addEventListener('change', function() {
             modeText.textContent = this.checked ? 'Decrypt' : 'Encrypt';
+        });
+
+        const showPasswordToggle = document.getElementById('showPasswordToggle');
+        const passwordInput = document.getElementById('password');
+        
+        showPasswordToggle.addEventListener('change', function() {
+            passwordInput.type = this.checked ? 'text' : 'password';
         });
 
         function processText() {
