@@ -22,6 +22,6 @@ const tools = [
     {
         title: "QR Code Generator",
         description: "Create a QR code given a string",
-        path: "qrCodeMaker.html"
+        path: "qrcodeMaker.html"
     }
 ];
