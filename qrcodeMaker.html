@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>QR Code Generator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      color: #333;
+    }
+    .input-container {
+      margin: 20px 0;
+    }
+    input[type="text"] {
+      padding: 10px;
+      width: 70%;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-left: 10px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #qrcode {
+      margin: 30px auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .options {
+      margin: 20px 0;
+    }
+    select {
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    .error {
+      color: red;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>QR Code Generator</h1>
+  
+  <div class="input-container">
+    <input type="text" id="textInput" placeholder="Enter text or URL to generate QR code" value="">
+    <button onclick="generateQR()">Generate</button>
+  </div>
+  
+  <div class="options">
+    <label for="sizeSelect">QR Code Size:</label>
+    <select id="sizeSelect">
+      <option value="128">Small</option>
+      <option value="200" selected>Medium</option>
+      <option value="300">Large</option>
+    </select>
+    
+    <label for="colorInput" style="margin-left: 15px;">Color:</label>
+    <input type="color" id="colorInput" value="#000000">
+  </div>
+  
+  <div id="errorText" class="error"></div>
+  <div id="qrcode"></div>
+  <div style="text-align: center;">
+    <button id="downloadBtn" onclick="downloadQR()" style="display: none; margin-top: 20px;">Download QR Code</button>
+  </div>
+  
+  <script>
+    let qrcode = null;
+    
+    function generateQR() {
+      const text = document.getElementById("textInput").value;
+      const size = document.getElementById("sizeSelect").value;
+      const color = document.getElementById("colorInput").value;
+      const errorElement = document.getElementById("errorText");
+      const downloadBtn = document.getElementById("downloadBtn");
+      
+      // Clear previous QR code and error message
+      document.getElementById("qrcode").innerHTML = "";
+      errorElement.textContent = "";
+      downloadBtn.style.display = "none";
+      
+      // Validate input
+      if (!text) {
+        errorElement.textContent = "Please enter some text or a URL";
+        return;
+      }
+      
+      // Create new QR code with options
+      qrcode = new QRCode(document.getElementById("qrcode"), {
+        text: text,
+        width: parseInt(size),
+        height: parseInt(size),
+        colorDark: color,
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+      
+      // Show download button after QR code is generated
+      setTimeout(() => {
+        downloadBtn.style.display = "inline-block";
+      }, 200);
+    }
+    
+    function downloadQR() {
+      // Get the QR code image
+      const img = document.querySelector("#qrcode img");
+      if (!img) return;
+      
+      // Create a canvas element
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      
+      // Set canvas size to match QR code
+      canvas.width = img.width;
+      canvas.height = img.height;
+      
+      // Draw the image to canvas
+      context.drawImage(img, 0, 0, img.width, img.height);
+      
+      // Convert canvas to data URL
+      const dataURL = canvas.toDataURL("image/png");
+      
+      // Create download link
+      const downloadLink = document.createElement("a");
+      const text = document.getElementById("textInput").value;
+      downloadLink.download = "qrcode-" + text.substring(0, 15).replace(/[^a-z0-9]/gi, '-') + ".png";
+      downloadLink.href = dataURL;
+      
+      // Trigger download
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+    
+    // Set up event listener for enter key
+    document.getElementById("textInput").addEventListener("keyup", function(event) {
+      if (event.key === "Enter") {
+        generateQR();
+      }
+    });
+  </script>
+</body>
+</html>
