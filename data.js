@@ -18,5 +18,10 @@ const tools = [
         title: "Password Generator",
         description: "Generate secure passwords with customizable options",
         path: "passwordmaker.html"
+    },
+    {
+        title: "QR Code Generator",
+        description: "Create a QR code given a string",
+        path: "qrCodeMaker.html"
     }
 ];
