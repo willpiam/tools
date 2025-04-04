@@ -23,5 +23,10 @@ const tools = [
         title: "QR Code Generator",
         description: "Create a QR code given a string",
         path: "qrcodeMaker.html"
+    },
+    {
+        title: "ECC Asymmetric Encryption Tool",
+        description: "Encrypt and decrypt messages using ECC asymmetric encryption",
+        path: "asymmetric.html"
     }
 ];
