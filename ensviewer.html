@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ENS Record Viewer</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;max-width:36rem;margin:4rem auto;text-align:center;line-height:1.4}
+    code{background:#f4f4f4;padding:2px 4px;border-radius:4px}
+  </style>
+</head>
+<body>
+  <h1>williamdoyle.eth</h1>
+  <p>Text record for label <code>qrl</code>:</p>
+  <p id="value">Loading…</p>
+
+  <!-- Ethers.js (UMD build) -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7/dist/ethers.umd.min.js" integrity="sha256-hufHyOcyHkQnGUef/N3lpP25wLpMTPef5iCRMs3Px1w=" crossorigin="anonymous"></script>
+  <script>
+  (async () => {
+    const provider = new ethers.providers.JsonRpcProvider('https://cloudflare-eth.com');
+    const output = document.getElementById('value');
+    try {
+      const resolver = await provider.getResolver('williamdoyle.eth');
+      if (!resolver) {
+        output.textContent = 'No resolver configured for williamdoyle.eth';
+        return;
+      }
+      const record = await resolver.getText('qrl');
+      output.textContent = record || '(record not set)';
+    } catch (err) {
+      output.textContent = 'Error: ' + err.message;
+    }
+  })();
+  </script>
+</body>
+</html>

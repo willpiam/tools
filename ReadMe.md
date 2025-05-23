@@ -2,6 +2,14 @@
 
 A collection of tools I find useful!
 
+## To add
+
+### A hash tool
+
+Can input text or upload a file. Select their hash function. View the resulting hash. 
+
+
+
 ## Live
 
 [williamdoyle.ca/tools](https://williamdoyle.ca/tools)
