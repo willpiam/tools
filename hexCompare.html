@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hex String Collector</title>
+  <style>
+    /* Minimal styles for simple layout */
+    body {
+      font-family: sans-serif;
+      padding: 1rem;
+    }
+    .container {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 0 1rem;
+    }
+    input[type="text"], button {
+      padding: 0.5rem;
+      margin-right: 0.5rem;
+    }
+    ul {
+      list-style-type: none;
+      padding-left: 0;
+    }
+    li {
+      padding: 0.25rem 0;
+    }
+    .error {
+      color: red;
+      margin-top: 0.5rem;
+    }
+    .entry-name {
+      color: grey;
+      font-size: 0.9em;
+    }
+    .entry-value {
+      font-family: monospace;
+    }
+    .delete-btn {
+      margin-left: 0.5rem;
+    }
+    .export-btn {
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Hex Compare</h1>
+    <div id="explanation">
+      <h2>Explanation</h2>
+      <p>
+        This tool allows you to compare multiple hex strings. 
+        <ul>
+          <li>
+            Text which is similar between all strings is not colored. 
+          </li>
+          <li>
+            Text which only exists in one string is colored in orange. 
+          </li>
+          <li>
+            Text which is similar between some but not all strings is colored in blue. 
+          </li>
+        </ul>
+      </p>
+    </div>
+    <form id="hexForm">
+      <input type="text" id="nameInput" placeholder="Name (optional)" autocomplete="off" />
+      <input type="text" id="hexInput" placeholder="Enter hex string" autocomplete="off" />
+      <button type="submit">Add</button>
+    </form>
+    <div class="error" id="error"></div>
+    <ul id="hexList"></ul>
+    <button type="button" id="exportBtn" class="export-btn">Export JSON</button>
+    <button type="button" id="importBtn" class="export-btn">Import JSON</button>
+    <input type="file" id="importInput" accept="application/json" style="display:none" />
+  </div>
+
+  <script>
+    const hexArray = [];
+    const form = document.getElementById('hexForm');
+    const nameInput = document.getElementById('nameInput');
+    const input = document.getElementById('hexInput');
+    const list = document.getElementById('hexList');
+    const errorDiv = document.getElementById('error');
+
+    function isHex(str) {
+      return /^[0-9a-f]+$/.test(str);
+    }
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      errorDiv.textContent = '';
+
+      let name = nameInput.value.trim();
+      let value = input.value.toLowerCase().trim();
+
+      if (!name) {
+        name = `String ${hexArray.length + 1}`;
+      }
+      if (!value) {
+        errorDiv.textContent = 'Please enter a value.';
+        return;
+      }
+
+      if (!isHex(value)) {
+        errorDiv.textContent = 'Invalid hex string. Only 0-9 and a-f are allowed.';
+        return;
+      }
+
+      const obj = { name, value };
+      hexArray.push(obj);
+
+      const li = document.createElement('li');
+      const nameDiv = document.createElement('div');
+      nameDiv.textContent = name;
+      nameDiv.className = 'entry-name';
+      const valueDiv = document.createElement('div');
+      valueDiv.textContent = value;
+      valueDiv.className = 'entry-value';
+      li.appendChild(nameDiv);
+      li.appendChild(valueDiv);
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.className = 'delete-btn';
+      deleteBtn.addEventListener('click', () => {
+        hexArray.splice(hexArray.indexOf(obj), 1);
+        list.removeChild(li);
+      });
+      li.appendChild(deleteBtn);
+      list.appendChild(li);
+
+      input.value = '';
+      nameInput.value = '';
+      nameInput.focus();
+    });
+
+    const exportBtn = document.getElementById('exportBtn');
+    exportBtn.addEventListener('click', function() {
+      const json = JSON.stringify(hexArray, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'hexStrings.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    const importBtn = document.getElementById('importBtn');
+    const importInput = document.getElementById('importInput');
+    importBtn.addEventListener('click', () => importInput.click());
+    importInput.addEventListener('change', function() {
+      const file = importInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        errorDiv.textContent = '';
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!Array.isArray(data)) throw new Error();
+          hexArray.length = 0;
+          list.innerHTML = '';
+          data.forEach(item => {
+            let name = item.name;
+            let value = item.value.toLowerCase();
+            if (typeof name !== 'string' || typeof value !== 'string' || !isHex(value)) throw new Error();
+            name = name.trim() || `String ${hexArray.length + 1}`;
+            const obj = { name, value };
+            hexArray.push(obj);
+            const li = document.createElement('li');
+            const nameDiv = document.createElement('div');
+            nameDiv.textContent = name;
+            nameDiv.className = 'entry-name';
+            const valueDiv = document.createElement('div');
+            valueDiv.textContent = value;
+            valueDiv.className = 'entry-value';
+            li.appendChild(nameDiv);
+            li.appendChild(valueDiv);
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.addEventListener('click', () => {
+              hexArray.splice(hexArray.indexOf(obj), 1);
+              list.removeChild(li);
+            });
+            li.appendChild(deleteBtn);
+            list.appendChild(li);
+          });
+        } catch (err) {
+          errorDiv.textContent = 'Invalid JSON file.';
+        }
+        importInput.value = '';
+      };
+      reader.readAsText(file);
+    });
+  </script>
+</body>
+</html>
