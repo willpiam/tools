@@ -28,5 +28,10 @@ const tools = [
         title: "ECC Asymmetric Encryption Tool",
         description: "Encrypt and decrypt messages using ECC asymmetric encryption",
         path: "asymmetric.html"
+    },
+    {
+        title: "Hex Differ",
+        description: "Compare multiple hex strings and highlight their differences",
+        path: "hexCompare.html"
     }
 ];
