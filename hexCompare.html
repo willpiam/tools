@@ -47,6 +47,11 @@
       font-weight: bold;
       margin-right: 0.5rem;
     }
+    .entry-matches {
+      color: grey;
+      font-size: 0.9em;
+      margin-left: 0.5rem;
+    }
     .match-indicator {
       color: green;
       font-size: 0.9em;
@@ -124,6 +129,26 @@
       });
     }
 
+    // Updates match lists for entries with identical values
+    function updateMatches() {
+      Array.from(list.children).forEach((li, idx) => {
+        const currVal = hexArray[idx].value;
+        const matches = [];
+        hexArray.forEach((o, j) => { if (j !== idx && o.value === currVal) matches.push(j); });
+        let mDiv = li.querySelector('.entry-matches');
+        if (matches.length > 0) {
+          if (!mDiv) {
+            mDiv = document.createElement('div');
+            mDiv.className = 'entry-matches';
+            li.appendChild(mDiv);
+          }
+          mDiv.textContent = 'Matches: ' + matches.join(', ');
+        } else if (mDiv) {
+          li.removeChild(mDiv);
+        }
+      });
+    }
+
     form.addEventListener('submit', function(e) {
       e.preventDefault();
       errorDiv.textContent = '';
@@ -198,11 +223,13 @@
         }
         updateMatchIndicators();
         updateIDs();
+        updateMatches();
       });
       li.appendChild(deleteBtn);
       list.appendChild(li);
       updateMatchIndicators();
       updateIDs();
+      updateMatches();
       input.value = '';
       nameInput.value = '';
       nameInput.focus();
@@ -293,11 +320,13 @@
               }
               updateMatchIndicators();
               updateIDs();
+              updateMatches();
             });
             li.appendChild(deleteBtn);
             list.appendChild(li);
             updateMatchIndicators();
             updateIDs();
+            updateMatches();
           });
         } catch (err) {
           errorDiv.textContent = 'Invalid JSON file.';
