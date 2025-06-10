@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hex String Collector</title>
+  <title>Hex Differ</title>
   <style>
     /* Minimal styles for simple layout */
     body {
@@ -42,6 +42,17 @@
     .entry-value {
       font-family: monospace;
     }
+    /* Diff highlighting */
+    .byte-keep {
+      background-color: inherit;
+    }
+    .byte-insert {
+      background-color: #fff3cd; /* light yellow */
+    }
+    .byte-delete {
+      background-color: #f8d7da; /* light red */
+      text-decoration: line-through;
+    }
     .entry-base-truth {
       font-family: monospace;
       color: #777;
@@ -79,7 +90,7 @@
 </head>
 <body>
   <div class="container">
-    <h1>Hex Compare</h1>
+    <h1>Hex Differ</h1>
     <div id="explanation">
       <p>
         This tool allows you to compare multiple hex strings. By highlighting their differences. 
@@ -101,6 +112,54 @@
   </div>
 
   <script>
+    /**
+     * Compute a Git-style diff between two hex strings.
+     *
+     * @param {string} oldHex  – even-length hex string (e.g. "FF0A12")
+     * @param {string} newHex  – even-length hex string (e.g. "FF12B4")
+     * @returns {Array.<['='|'-'|'+', string]>}
+     *          An array of tuples: [op, byte]
+     *          ─ op   : '=' for unchanged, '-' for deletion, '+' for insertion
+     *          ─ byte : the 2-char hex byte concerned
+     */
+    function diffHex(oldHex, newHex) {
+      if (oldHex.length % 2 || newHex.length % 2) {
+        throw new Error("Hex strings must have even length");
+      }
+
+      // --- tokenise into byte arrays ------------------------------------------
+      const A = Array.from({ length: oldHex.length / 2 },
+                          (_, i) => oldHex.slice(i * 2, i * 2 + 2));
+      const B = Array.from({ length: newHex.length / 2 },
+                          (_, i) => newHex.slice(i * 2, i * 2 + 2));
+      const n = A.length, m = B.length;
+
+      // --- build LCS length table (DP) ----------------------------------------
+      const L = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
+      for (let i = n - 1; i >= 0; --i) {
+        for (let j = m - 1; j >= 0; --j) {
+          L[i][j] = (A[i] === B[j])
+            ? 1 + L[i + 1][j + 1]
+            : Math.max(L[i + 1][j], L[i][j + 1]);
+        }
+      }
+
+      // --- back-track to build edit script ------------------------------------
+      const script = [];
+      let i = 0, j = 0;
+      while (i < n || j < m) {
+        if (i < n && j < m && A[i] === B[j]) {
+          script.push(['=', A[i]]);  ++i; ++j;          // keep
+        } else if (j < m && (i === n || L[i][j + 1] >= L[i + 1][j])) {
+          script.push(['+', B[j]]);  ++j;               // insert
+        } else {
+          script.push(['-', A[i]]);  ++i;               // delete
+        }
+      }
+      return script;
+    }
+
+
     const hexArray = [];
     const form = document.getElementById('hexForm');
     const nameInput = document.getElementById('nameInput');
@@ -110,6 +169,44 @@
 
     function isHex(str) {
       return /^[0-9a-f]+$/.test(str);
+    }
+
+    // Renders a diff-highlighted HTML string comparing value against base
+    function renderDiffString(base, value) {
+      if (!base) return value;
+      let html = '';
+      try {
+        const script = diffHex(base, value);
+        script.forEach(([op, byte]) => {
+          if (op === '=') {
+            html += `<span class="byte-keep">${byte}</span>`;
+          } else if (op === '+') {
+            html += `<span class="byte-insert">${byte}</span>`;
+          } else if (op === '-') {
+            html += `<span class="byte-delete">${byte}</span>`;
+          }
+        });
+      } catch (err) {
+        // In case of any error just return the raw value
+        html = value;
+      }
+      return html;
+    }
+
+    // Updates diff-highlighted strings for every entry
+    function updateDiffs() {
+      const gtObj = hexArray.find(o => o.isGroundTruth);
+      const base = gtObj ? gtObj.value : '';
+      Array.from(list.children).forEach((li, idx) => {
+        const valDiv = li.querySelector('.entry-value');
+        if (!valDiv) return;
+        const obj = hexArray[idx];
+        if (obj.isGroundTruth || !base) {
+          valDiv.innerHTML = obj.value;
+        } else {
+          valDiv.innerHTML = renderDiffString(base, obj.value);
+        }
+      });
     }
 
     // Updates match indicators for entries that exactly match the ground truth
@@ -183,6 +280,8 @@
           li.removeChild(baseDiv);
         }
       });
+      // After updating base truth elements, refresh diffs
+      updateDiffs();
     }
 
     form.addEventListener('submit', function(e) {
