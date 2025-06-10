@@ -43,6 +43,15 @@
       font-size: 0.9em;
       margin-left: 0.5rem;
     }
+    .entry-id {
+      font-weight: bold;
+      margin-right: 0.5rem;
+    }
+    .match-indicator {
+      color: green;
+      font-size: 0.9em;
+      margin-left: 0.5rem;
+    }
     .delete-btn {
       margin-left: 0.5rem;
     }
@@ -87,6 +96,34 @@
       return /^[0-9a-f]+$/.test(str);
     }
 
+    // Updates match indicators for entries that exactly match the ground truth
+    function updateMatchIndicators() {
+      const gtObj = hexArray.find(o => o.isGroundTruth);
+      Array.from(list.children).forEach((li, idx) => {
+        const obj = hexArray[idx];
+        const isMatch = gtObj && !obj.isGroundTruth && obj.value === gtObj.value;
+        let matchDiv = li.querySelector('.match-indicator');
+        if (isMatch) {
+          if (!matchDiv) {
+            matchDiv = document.createElement('div');
+            matchDiv.className = 'match-indicator';
+            matchDiv.textContent = 'Exact match';
+            li.appendChild(matchDiv);
+          }
+        } else if (matchDiv) {
+          li.removeChild(matchDiv);
+        }
+      });
+    }
+
+    // Updates ID labels for each entry to reflect current index
+    function updateIDs() {
+      Array.from(list.children).forEach((li, idx) => {
+        const idDiv = li.querySelector('.entry-id');
+        if (idDiv) idDiv.textContent = `ID: ${idx}`;
+      });
+    }
+
     form.addEventListener('submit', function(e) {
       e.preventDefault();
       errorDiv.textContent = '';
@@ -124,9 +161,14 @@
           const radio = child.querySelector('input[name="groundTruth"]');
           if (radio) radio.checked = hexArray[idx].isGroundTruth;
         });
+        updateMatchIndicators();
       });
       li.appendChild(gtInput);
       li.classList.toggle('ground-truth', obj.isGroundTruth);
+      const idDiv = document.createElement('div');
+      idDiv.textContent = `ID: ${hexArray.indexOf(obj)}`;
+      idDiv.className = 'entry-id';
+      li.appendChild(idDiv);
       const nameDiv = document.createElement('div');
       nameDiv.textContent = name;
       nameDiv.className = 'entry-name';
@@ -154,10 +196,13 @@
             if (radio) radio.checked = hexArray[idx].isGroundTruth;
           });
         }
+        updateMatchIndicators();
+        updateIDs();
       });
       li.appendChild(deleteBtn);
       list.appendChild(li);
-
+      updateMatchIndicators();
+      updateIDs();
       input.value = '';
       nameInput.value = '';
       nameInput.focus();
@@ -211,9 +256,14 @@
                 const radio = child.querySelector('input[name="groundTruth"]');
                 if (radio) radio.checked = hexArray[idx].isGroundTruth;
               });
+              updateMatchIndicators();
             });
             li.appendChild(gtInput);
             li.classList.toggle('ground-truth', obj.isGroundTruth);
+            const idDiv = document.createElement('div');
+            idDiv.textContent = `ID: ${hexArray.indexOf(obj)}`;
+            idDiv.className = 'entry-id';
+            li.appendChild(idDiv);
             const nameDiv = document.createElement('div');
             nameDiv.textContent = name;
             nameDiv.className = 'entry-name';
@@ -241,9 +291,13 @@
                   if (radio) radio.checked = hexArray[idx].isGroundTruth;
                 });
               }
+              updateMatchIndicators();
+              updateIDs();
             });
             li.appendChild(deleteBtn);
             list.appendChild(li);
+            updateMatchIndicators();
+            updateIDs();
           });
         } catch (err) {
           errorDiv.textContent = 'Invalid JSON file.';
