@@ -38,11 +38,20 @@
     .entry-value {
       font-family: monospace;
     }
+    .entry-length {
+      color: grey;
+      font-size: 0.9em;
+      margin-left: 0.5rem;
+    }
     .delete-btn {
       margin-left: 0.5rem;
     }
     .export-btn {
       margin-top: 1rem;
+    }
+    .ground-truth {
+      background-color: #e8ffe8;
+      border: 1px solid green;
     }
   </style>
 </head>
@@ -50,20 +59,8 @@
   <div class="container">
     <h1>Hex Compare</h1>
     <div id="explanation">
-      <h2>Explanation</h2>
       <p>
-        This tool allows you to compare multiple hex strings. 
-        <ul>
-          <li>
-            Text which is similar between all strings is not colored. 
-          </li>
-          <li>
-            Text which only exists in one string is colored in orange. 
-          </li>
-          <li>
-            Text which is similar between some but not all strings is colored in blue. 
-          </li>
-        </ul>
+        This tool allows you to compare multiple hex strings. By highlighting their differences. 
       </p>
     </div>
     <form id="hexForm">
@@ -110,24 +107,53 @@
         return;
       }
 
-      const obj = { name, value };
+      const obj = { name, value, isGroundTruth: hexArray.length === 0 };
       hexArray.push(obj);
 
       const li = document.createElement('li');
+      const gtInput = document.createElement('input');
+      gtInput.type = 'radio';
+      gtInput.name = 'groundTruth';
+      gtInput.className = 'ground-truth-radio';
+      gtInput.checked = obj.isGroundTruth;
+      gtInput.addEventListener('change', () => {
+        hexArray.forEach(o => o.isGroundTruth = false);
+        obj.isGroundTruth = true;
+        Array.from(list.children).forEach((child, idx) => {
+          child.classList.toggle('ground-truth', hexArray[idx].isGroundTruth);
+          const radio = child.querySelector('input[name="groundTruth"]');
+          if (radio) radio.checked = hexArray[idx].isGroundTruth;
+        });
+      });
+      li.appendChild(gtInput);
+      li.classList.toggle('ground-truth', obj.isGroundTruth);
       const nameDiv = document.createElement('div');
       nameDiv.textContent = name;
       nameDiv.className = 'entry-name';
+      li.appendChild(nameDiv);
       const valueDiv = document.createElement('div');
       valueDiv.textContent = value;
       valueDiv.className = 'entry-value';
-      li.appendChild(nameDiv);
       li.appendChild(valueDiv);
+      const lengthDiv = document.createElement('div');
+      lengthDiv.textContent = `Length: ${value.length}`;
+      lengthDiv.className = 'entry-length';
+      li.appendChild(lengthDiv);
       const deleteBtn = document.createElement('button');
       deleteBtn.textContent = 'Delete';
       deleteBtn.className = 'delete-btn';
       deleteBtn.addEventListener('click', () => {
+        const wasGT = obj.isGroundTruth;
         hexArray.splice(hexArray.indexOf(obj), 1);
         list.removeChild(li);
+        if (wasGT && hexArray.length > 0) {
+          hexArray[0].isGroundTruth = true;
+          Array.from(list.children).forEach((child, idx) => {
+            child.classList.toggle('ground-truth', hexArray[idx].isGroundTruth);
+            const radio = child.querySelector('input[name="groundTruth"]');
+            if (radio) radio.checked = hexArray[idx].isGroundTruth;
+          });
+        }
       });
       li.appendChild(deleteBtn);
       list.appendChild(li);
@@ -161,6 +187,7 @@
         try {
           const data = JSON.parse(e.target.result);
           if (!Array.isArray(data)) throw new Error();
+          const hasImportedGT = data.some(item => item.isGroundTruth === true);
           hexArray.length = 0;
           list.innerHTML = '';
           data.forEach(item => {
@@ -168,23 +195,52 @@
             let value = item.value.toLowerCase();
             if (typeof name !== 'string' || typeof value !== 'string' || !isHex(value)) throw new Error();
             name = name.trim() || `String ${hexArray.length + 1}`;
-            const obj = { name, value };
+            const obj = { name, value, isGroundTruth: hasImportedGT ? Boolean(item.isGroundTruth) : hexArray.length === 0 };
             hexArray.push(obj);
             const li = document.createElement('li');
+            const gtInput = document.createElement('input');
+            gtInput.type = 'radio';
+            gtInput.name = 'groundTruth';
+            gtInput.className = 'ground-truth-radio';
+            gtInput.checked = obj.isGroundTruth;
+            gtInput.addEventListener('change', () => {
+              hexArray.forEach(o => o.isGroundTruth = false);
+              obj.isGroundTruth = true;
+              Array.from(list.children).forEach((child, idx) => {
+                child.classList.toggle('ground-truth', hexArray[idx].isGroundTruth);
+                const radio = child.querySelector('input[name="groundTruth"]');
+                if (radio) radio.checked = hexArray[idx].isGroundTruth;
+              });
+            });
+            li.appendChild(gtInput);
+            li.classList.toggle('ground-truth', obj.isGroundTruth);
             const nameDiv = document.createElement('div');
             nameDiv.textContent = name;
             nameDiv.className = 'entry-name';
+            li.appendChild(nameDiv);
             const valueDiv = document.createElement('div');
             valueDiv.textContent = value;
             valueDiv.className = 'entry-value';
-            li.appendChild(nameDiv);
             li.appendChild(valueDiv);
+            const lengthDiv = document.createElement('div');
+            lengthDiv.textContent = `Length: ${value.length}`;
+            lengthDiv.className = 'entry-length';
+            li.appendChild(lengthDiv);
             const deleteBtn = document.createElement('button');
             deleteBtn.textContent = 'Delete';
             deleteBtn.className = 'delete-btn';
             deleteBtn.addEventListener('click', () => {
+              const wasGT = obj.isGroundTruth;
               hexArray.splice(hexArray.indexOf(obj), 1);
               list.removeChild(li);
+              if (wasGT && hexArray.length > 0) {
+                hexArray[0].isGroundTruth = true;
+                Array.from(list.children).forEach((child, idx) => {
+                  child.classList.toggle('ground-truth', hexArray[idx].isGroundTruth);
+                  const radio = child.querySelector('input[name="groundTruth"]');
+                  if (radio) radio.checked = hexArray[idx].isGroundTruth;
+                });
+              }
             });
             li.appendChild(deleteBtn);
             list.appendChild(li);
