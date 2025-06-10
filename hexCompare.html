@@ -9,12 +9,16 @@
     body {
       font-family: sans-serif;
       padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
     .container {
       width: 100%;
       max-width: none;
       margin: 0;
       padding: 0 1rem;
+      flex: 1;
     }
     input[type="text"], button {
       padding: 0.5rem;
@@ -91,6 +95,9 @@
     <button type="button" id="exportBtn" class="export-btn">Export JSON</button>
     <button type="button" id="importBtn" class="export-btn">Import JSON</button>
     <input type="file" id="importInput" accept="application/json" style="display:none" />
+  </div>
+  <div style="margin-top: 2rem; text-align: center; font-size: 0.9em;">
+    <a href="https://github.com/willpiam/tools/issues" target="_blank" rel="noopener">report an issue</a>
   </div>
 
   <script>
