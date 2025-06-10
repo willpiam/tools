@@ -86,6 +86,26 @@
       background-color: #e8ffe8;
       border: 1px solid green;
     }
+    /* Legend styles */
+    .legend {
+      margin: 1rem 0;
+    }
+    .legend-list {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      gap: 1rem;
+    }
+    .legend-list li {
+      display: flex;
+      align-items: center;
+    }
+    .legend-list span {
+      display: inline-block;
+      width: 2rem;
+      text-align: center;
+      margin-right: 0.5rem;
+    }
   </style>
 </head>
 <body>
@@ -95,6 +115,14 @@
       <p>
         This tool allows you to compare multiple hex strings. By highlighting their differences. 
       </p>
+    </div>
+    <div class="legend">
+      <strong>Legend:</strong>
+      <ul class="legend-list">
+        <li><span class="byte-keep">AA</span> Unchanged</li>
+        <li><span class="byte-insert">BB</span> Inserted</li>
+        <li><span class="byte-delete">CC</span> Deleted</li>
+      </ul>
     </div>
     <form id="hexForm">
       <input type="text" id="nameInput" placeholder="Name (optional)" autocomplete="off" />
