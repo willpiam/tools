@@ -38,6 +38,10 @@
     .entry-value {
       font-family: monospace;
     }
+    .entry-base-truth {
+      font-family: monospace;
+      color: #777;
+    }
     .entry-length {
       color: grey;
       font-size: 0.9em;
@@ -149,6 +153,31 @@
       });
     }
 
+    // Updates base-truth strings under non-ground-truth entries
+    function updateBaseTruth() {
+      const gtObj = hexArray.find(o => o.isGroundTruth);
+      const baseValue = gtObj ? gtObj.value : '';
+      Array.from(list.children).forEach((li, idx) => {
+        const obj = hexArray[idx];
+        let baseDiv = li.querySelector('.entry-base-truth');
+        if (!obj.isGroundTruth) {
+          if (!baseDiv) {
+            baseDiv = document.createElement('div');
+            baseDiv.className = 'entry-base-truth';
+            const valueDiv = li.querySelector('.entry-value');
+            if (valueDiv && valueDiv.nextSibling) {
+              li.insertBefore(baseDiv, valueDiv.nextSibling);
+            } else {
+              li.appendChild(baseDiv);
+            }
+          }
+          baseDiv.textContent = baseValue;
+        } else if (baseDiv) {
+          li.removeChild(baseDiv);
+        }
+      });
+    }
+
     form.addEventListener('submit', function(e) {
       e.preventDefault();
       errorDiv.textContent = '';
@@ -187,6 +216,7 @@
           if (radio) radio.checked = hexArray[idx].isGroundTruth;
         });
         updateMatchIndicators();
+        updateBaseTruth();
       });
       li.appendChild(gtInput);
       li.classList.toggle('ground-truth', obj.isGroundTruth);
@@ -201,6 +231,12 @@
       const valueDiv = document.createElement('div');
       valueDiv.textContent = value;
       valueDiv.className = 'entry-value';
+      if (!obj.isGroundTruth) {
+        const baseDiv = document.createElement('div');
+        baseDiv.textContent = hexArray.find(o => o.isGroundTruth).value;
+        baseDiv.className = 'entry-base-truth';
+        li.appendChild(baseDiv);
+      }
       li.appendChild(valueDiv);
       const lengthDiv = document.createElement('div');
       lengthDiv.textContent = `Length: ${value.length}`;
@@ -224,12 +260,14 @@
         updateMatchIndicators();
         updateIDs();
         updateMatches();
+        updateBaseTruth();
       });
       li.appendChild(deleteBtn);
       list.appendChild(li);
       updateMatchIndicators();
       updateIDs();
       updateMatches();
+      updateBaseTruth();
       input.value = '';
       nameInput.value = '';
       nameInput.focus();
@@ -260,6 +298,9 @@
           const data = JSON.parse(e.target.result);
           if (!Array.isArray(data)) throw new Error();
           const hasImportedGT = data.some(item => item.isGroundTruth === true);
+          const baseTruthValue = hasImportedGT
+            ? data.find(item => item.isGroundTruth === true).value.toLowerCase()
+            : (data.length > 0 ? data[0].value.toLowerCase() : '');
           hexArray.length = 0;
           list.innerHTML = '';
           data.forEach(item => {
@@ -284,6 +325,7 @@
                 if (radio) radio.checked = hexArray[idx].isGroundTruth;
               });
               updateMatchIndicators();
+              updateBaseTruth();
             });
             li.appendChild(gtInput);
             li.classList.toggle('ground-truth', obj.isGroundTruth);
@@ -298,6 +340,12 @@
             const valueDiv = document.createElement('div');
             valueDiv.textContent = value;
             valueDiv.className = 'entry-value';
+            if (!obj.isGroundTruth) {
+              const baseDiv = document.createElement('div');
+              baseDiv.textContent = baseTruthValue;
+              baseDiv.className = 'entry-base-truth';
+              li.appendChild(baseDiv);
+            }
             li.appendChild(valueDiv);
             const lengthDiv = document.createElement('div');
             lengthDiv.textContent = `Length: ${value.length}`;
@@ -321,12 +369,14 @@
               updateMatchIndicators();
               updateIDs();
               updateMatches();
+              updateBaseTruth();
             });
             li.appendChild(deleteBtn);
             list.appendChild(li);
             updateMatchIndicators();
             updateIDs();
             updateMatches();
+            updateBaseTruth();
           });
         } catch (err) {
           errorDiv.textContent = 'Invalid JSON file.';
