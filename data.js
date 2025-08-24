@@ -33,5 +33,10 @@ const tools = [
         title: "Hex Differ",
         description: "Compare multiple hex strings and highlight their differences",
         path: "hexCompare.html"
+    },
+    {
+        title: "Dice Roller",
+        description: "Roll dice and see the results",
+        path: "dice.html"
     }
 ];

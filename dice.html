@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dice Roller</title>
+  <style>
+    .note {
+      font-size: 0.9em;
+      color: #555;
+      font-style: italic;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Dice Roller</h1>
+
+  <form id="dice-form">
+    <label for="dice-count">Number of dice:</label>
+    <input type="number" id="dice-count" name="dice" min="1">
+    <button type="submit">Roll</button>
+  </form>
+
+  <p id="results"></p>
+  <p class="note">Tip: You can also specify the number of dice by adding <code>?dice=n</code> to the URL (where n is the desired number of dice).</p>
+
+  <script>
+    // Read dice count from URL (?dice=3)
+    const params = new URLSearchParams(window.location.search);
+    const defaultDice = parseInt(params.get("dice")) || 1;
+
+    const input = document.getElementById("dice-count");
+    const results = document.getElementById("results");
+    const form = document.getElementById("dice-form");
+
+    input.value = defaultDice;
+
+    function rollDice(n) {
+      let rolls = [];
+      for (let i = 0; i < n; i++) {
+        rolls.push(Math.floor(Math.random() * 6) + 1);
+      }
+      return rolls;
+    }
+
+    function showResults(n) {
+      const rolls = rollDice(n);
+      if (n > 1) {
+        results.textContent = "You rolled: " + rolls.join(", ") + " (Sum: " + rolls.reduce((sum, val) => sum + val, 0) + ")";
+      } else {
+        results.textContent = "You rolled: " + rolls.join(", ");
+      }
+    }
+
+    // Roll immediately on load
+    showResults(defaultDice);
+
+    // Roll when form is submitted
+    form.addEventListener("submit", e => {
+      e.preventDefault();
+      const n = parseInt(input.value) || 1;
+      showResults(n);
+    });
+  </script>
+</body>
+</html>
