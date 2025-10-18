@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTC to ADA (Simple)</title>
+    <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 16px; }
+        h1 { font-size: 20px; margin: 0 0 12px 0; }
+        .note { font-size: 12px; color: #555; margin-bottom: 12px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
+        th:first-child, td:first-child { text-align: left; white-space: nowrap; }
+        tbody tr:nth-child(even) { background: #fafafa; }
+    </style>
+    <link rel="icon" href="data:,">
+    <!-- minimal favicon to avoid 404 -->
+    
+</head>
+<body>
+    <h1>Bitcoin to ADA (Last 30 Days)</h1>
+    <div class="note">Data from CoinGecko. Values are daily. BTC in ADA = BTC(USD) / ADA(USD).</div>
+    <table id="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>BTC (USD)</th>
+                <th>ADA (USD)</th>
+                <th>BTC in ADA</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="4" style="text-align:center">Loading…</td></tr>
+        </tbody>
+    </table>
+
+    <script>
+    (async function() {
+        const tbody = document.querySelector('#data-table tbody');
+
+        function formatDate(timestampMs) {
+            const d = new Date(timestampMs);
+            return d.toISOString().slice(0, 10);
+        }
+
+        function formatUsd(value) {
+            if (!isFinite(value)) return '-';
+            if (value >= 1000) {
+                return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+            }
+            return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatAda(value) {
+            if (!isFinite(value)) return '-';
+            return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+        }
+
+        try {
+            const [btcRes, adaRes] = await Promise.all([
+                fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=30&interval=daily'),
+                fetch('https://api.coingecko.com/api/v3/coins/cardano/market_chart?vs_currency=usd&days=30&interval=daily')
+            ]);
+
+            if (!btcRes.ok || !adaRes.ok) throw new Error('Failed to load data');
+
+            const [btcData, adaData] = await Promise.all([btcRes.json(), adaRes.json()]);
+            const btcPrices = Array.isArray(btcData?.prices) ? btcData.prices : [];
+            const adaPrices = Array.isArray(adaData?.prices) ? adaData.prices : [];
+
+            const length = Math.min(btcPrices.length, adaPrices.length);
+            const rows = [];
+
+            for (let i = 0; i < length; i++) {
+                const [tsBtc, btcUsd] = btcPrices[i];
+                const [, adaUsd] = adaPrices[i];
+                const ratio = btcUsd / adaUsd; // ADA per 1 BTC
+                rows.push({ date: formatDate(tsBtc), btcUsd, adaUsd, ratio });
+            }
+
+            tbody.innerHTML = '';
+            if (rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#b00">No data available</td></tr>';
+                return;
+            }
+
+            rows.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td style="text-align:left">' + r.date + '</td>' +
+                    '<td>' + formatUsd(r.btcUsd) + '</td>' +
+                    '<td>' + formatUsd(r.adaUsd) + '</td>' +
+                    '<td>' + formatAda(r.ratio) + '</td>';
+                tbody.appendChild(tr);
+            });
+        } catch (err) {
+            console.error(err);
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#b00">Error loading data</td></tr>';
+        }
+    })();
+    </script>
+</body>
+</html>
+
