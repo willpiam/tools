@@ -18,8 +18,20 @@
     
 </head>
 <body>
-    <h1>Bitcoin to ADA (Last 30 Days)</h1>
-    <div class="note">Data from CoinGecko. Values are daily. BTC in ADA = BTC(USD) / ADA(USD).</div>
+    <h1>Bitcoin to ADA</h1>
+    <div class="note">Data from Binance. Values are daily closes. BTC in ADA = BTC(USD) / ADA(USD).</div>
+    <div style="margin: 8px 0 12px 0; display:flex; gap:8px; align-items:center">
+        <label for="range-select" style="font-size:14px">Time span:</label>
+        <select id="range-select" style="font-size:14px; padding:4px">
+            <option value="max">Full history</option>
+            <option value="365">Past year</option>
+            <option value="180">Past 6 months</option>
+            <option value="30" selected>Past month</option>
+            <option value="7">Past week</option>
+            <option value="1">Past day</option>
+        </select>
+    </div>
+    <div id="status" class="note" aria-live="polite"></div>
     <table id="data-table">
         <thead>
             <tr>
@@ -35,8 +47,11 @@
     </table>
 
     <script>
-    (async function() {
+    (function() {
         const tbody = document.querySelector('#data-table tbody');
+        const rangeSelect = document.getElementById('range-select');
+        const statusEl = document.getElementById('status');
+        let currentController = null;
 
         function formatDate(timestampMs) {
             const d = new Date(timestampMs);
@@ -56,47 +71,122 @@
             return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
         }
 
-        try {
-            const [btcRes, adaRes] = await Promise.all([
-                fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=30&interval=daily'),
-                fetch('https://api.coingecko.com/api/v3/coins/cardano/market_chart?vs_currency=usd&days=30&interval=daily')
-            ]);
-
-            if (!btcRes.ok || !adaRes.ok) throw new Error('Failed to load data');
-
-            const [btcData, adaData] = await Promise.all([btcRes.json(), adaRes.json()]);
-            const btcPrices = Array.isArray(btcData?.prices) ? btcData.prices : [];
-            const adaPrices = Array.isArray(adaData?.prices) ? adaData.prices : [];
-
-            const length = Math.min(btcPrices.length, adaPrices.length);
-            const rows = [];
-
-            for (let i = 0; i < length; i++) {
-                const [tsBtc, btcUsd] = btcPrices[i];
-                const [, adaUsd] = adaPrices[i];
-                const ratio = btcUsd / adaUsd; // ADA per 1 BTC
-                rows.push({ date: formatDate(tsBtc), btcUsd, adaUsd, ratio });
-            }
-
-            tbody.innerHTML = '';
-            if (rows.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#b00">No data available</td></tr>';
-                return;
-            }
-
-            rows.forEach(r => {
-                const tr = document.createElement('tr');
-                tr.innerHTML =
-                    '<td style="text-align:left">' + r.date + '</td>' +
-                    '<td>' + formatUsd(r.btcUsd) + '</td>' +
-                    '<td>' + formatUsd(r.adaUsd) + '</td>' +
-                    '<td>' + formatAda(r.ratio) + '</td>';
-                tbody.appendChild(tr);
-            });
-        } catch (err) {
-            console.error(err);
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#b00">Error loading data</td></tr>';
+        function setStatus(message, isError) {
+            statusEl.textContent = message || '';
+            statusEl.style.color = isError ? '#b00' : '#555';
         }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function fetchWithRetry(url, options) {
+            const { signal } = options || {};
+            let attempt = 0;
+            const maxAttempts = 2; // one retry on 429/network
+            while (true) {
+                attempt++;
+                try {
+                    const res = await fetch(url, { ...options, signal });
+                    if (res.status === 429) {
+                        if (attempt >= maxAttempts) return res; // let caller handle
+                        const retryAfter = Number(res.headers.get('retry-after'));
+                        const waitMs = Number.isFinite(retryAfter) ? retryAfter * 1000 : 1500;
+                        await sleep(waitMs);
+                        continue;
+                    }
+                    return res;
+                } catch (e) {
+                    if (signal && signal.aborted) throw e;
+                    if (attempt >= maxAttempts) throw e;
+                    await sleep(1000);
+                }
+            }
+        }
+
+        async function loadData(daysParam) {
+            // Binance supports up to 1000 candles by limit; map max to 1000
+            const queryDays = daysParam === 'max' ? '1000' : String(daysParam);
+            const daysInt = Math.max(1, parseInt(queryDays, 10) || 30);
+
+            if (currentController) currentController.abort();
+            currentController = new AbortController();
+            const { signal } = currentController;
+
+            const timeoutId = setTimeout(() => currentController && currentController.abort(), 15000);
+
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Loading…</td></tr>';
+            setStatus('Loading ' + (queryDays === '365' && daysParam === 'max' ? 'full history (limited to 1 year for reliability)…' : 'data…'));
+            rangeSelect.disabled = true;
+
+            try {
+                const btcUrl = 'https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=' + daysInt;
+                const adaUrl = 'https://api.binance.com/api/v3/klines?symbol=ADAUSDT&interval=1d&limit=' + daysInt;
+                const [btcRes, adaRes] = await Promise.all([
+                    fetchWithRetry(btcUrl, { signal }),
+                    fetchWithRetry(adaUrl, { signal })
+                ]);
+
+                if (!btcRes.ok || !adaRes.ok) {
+                    const msg = (btcRes.status === 429 || adaRes.status === 429)
+                        ? 'Rate limited by data provider. Try a smaller range or wait a minute.'
+                        : 'Failed to load data (' + btcRes.status + '/' + adaRes.status + ').';
+                    throw new Error(msg);
+                }
+
+                const [btcData, adaData] = await Promise.all([btcRes.json(), adaRes.json()]);
+                const btcKlines = Array.isArray(btcData) ? btcData : [];
+                const adaKlines = Array.isArray(adaData) ? adaData : [];
+
+                const length = Math.min(btcKlines.length, adaKlines.length);
+                const rows = [];
+
+                for (let i = 0; i < length; i++) {
+                    const btc = btcKlines[i];
+                    const ada = adaKlines[i];
+                    const openTime = Number(btc && btc[0]);
+                    const btcClose = Number(btc && btc[4]);
+                    const adaClose = Number(ada && ada[4]);
+                    const ratio = btcClose / adaClose; // ADA per 1 BTC
+                    rows.push({ date: formatDate(openTime), btcUsd: btcClose, adaUsd: adaClose, ratio });
+                }
+
+                tbody.innerHTML = '';
+                if (rows.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#b00">No data available</td></tr>';
+                    setStatus('No data returned.', true);
+                    return;
+                }
+
+                rows.forEach(r => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML =
+                        '<td style="text-align:left">' + r.date + '</td>' +
+                        '<td>' + formatUsd(r.btcUsd) + '</td>' +
+                        '<td>' + formatUsd(r.adaUsd) + '</td>' +
+                        '<td>' + formatAda(r.ratio) + '</td>';
+                    tbody.appendChild(tr);
+                });
+                setStatus('Loaded ' + rows.length + ' days.');
+            } catch (err) {
+                if (err && err.name === 'AbortError') {
+                    return;
+                }
+                console.error(err);
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#b00">Error loading data</td></tr>';
+                setStatus(String(err && err.message ? err.message : 'Error loading data'), true);
+            } finally {
+                clearTimeout(timeoutId);
+                rangeSelect.disabled = false;
+            }
+        }
+
+        rangeSelect.addEventListener('change', function() {
+            loadData(rangeSelect.value);
+        });
+
+        // initial load
+        loadData(rangeSelect.value);
     })();
     </script>
 </body>
