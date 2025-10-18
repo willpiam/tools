@@ -285,7 +285,51 @@
                 sellAdaSummary.textContent = '';
             }
 
+            // Sync URL with current order inputs
+            syncOrdersToUrl();
+
             drawChart(currentRows, pairSelect.value);
+        }
+
+        function syncOrdersToUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const v1 = sellBtcBtc.value.trim();
+            const v2 = sellBtcAda.value.trim();
+            const v3 = sellAdaAda.value.trim();
+            const v4 = sellAdaBtc.value.trim();
+
+            if (v1 && v2) {
+                params.set('sellBtcBtc', v1);
+                params.set('sellBtcAda', v2);
+            } else {
+                params.delete('sellBtcBtc');
+                params.delete('sellBtcAda');
+            }
+
+            if (v3 && v4) {
+                params.set('sellAdaAda', v3);
+                params.set('sellAdaBtc', v4);
+            } else {
+                params.delete('sellAdaAda');
+                params.delete('sellAdaBtc');
+            }
+
+            const q = params.toString();
+            const newUrl = window.location.pathname + (q ? ('?' + q) : '') + window.location.hash;
+            window.history.replaceState(null, '', newUrl);
+        }
+
+        function loadOrdersFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const p1 = params.get('sellBtcBtc');
+            const p2 = params.get('sellBtcAda');
+            const p3 = params.get('sellAdaAda');
+            const p4 = params.get('sellAdaBtc');
+
+            if (p1 !== null) sellBtcBtc.value = p1;
+            if (p2 !== null) sellBtcAda.value = p2;
+            if (p3 !== null) sellAdaAda.value = p3;
+            if (p4 !== null) sellAdaBtc.value = p4;
         }
 
         async function loadData(daysParam) {
@@ -382,6 +426,8 @@
         });
 
         // initial load
+        loadOrdersFromUrl();
+        updateOrdersAndRedraw();
         loadData(rangeSelect.value);
         
         window.addEventListener('resize', function() {
