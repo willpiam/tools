@@ -40,6 +40,25 @@
     <div style="margin: 8px 0 12px 0;">
         <canvas id="chart" height="240" style="width:100%; display:block; background:#fff; border:1px solid #eee"></canvas>
     </div>
+    <div id="orders" style="margin: 8px 0 12px 0; display:flex; flex-direction:column; gap:8px">
+        <div style="font-weight:600">Limit orders</div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+            <span style="min-width:140px">Sell BTC for ADA</span>
+            <label for="sell-btc-btc">BTC:</label>
+            <input id="sell-btc-btc" type="number" step="any" min="0" style="width:120px">
+            <label for="sell-btc-ada">ADA:</label>
+            <input id="sell-btc-ada" type="number" step="any" min="0" style="width:120px">
+            <span id="sell-btc-summary" class="note"></span>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+            <span style="min-width:140px">Sell ADA for BTC</span>
+            <label for="sell-ada-ada">ADA:</label>
+            <input id="sell-ada-ada" type="number" step="any" min="0" style="width:120px">
+            <label for="sell-ada-btc">BTC:</label>
+            <input id="sell-ada-btc" type="number" step="any" min="0" style="width:120px">
+            <span id="sell-ada-summary" class="note"></span>
+        </div>
+    </div>
     <table id="data-table">
         <thead>
             <tr>
@@ -64,6 +83,14 @@
         const ctx = canvas.getContext('2d');
         let currentController = null;
         let currentRows = [];
+        const sellBtcBtc = document.getElementById('sell-btc-btc');
+        const sellBtcAda = document.getElementById('sell-btc-ada');
+        const sellAdaAda = document.getElementById('sell-ada-ada');
+        const sellAdaBtc = document.getElementById('sell-ada-btc');
+        const sellBtcSummary = document.getElementById('sell-btc-summary');
+        const sellAdaSummary = document.getElementById('sell-ada-summary');
+        let order1AdaPerBtc = null; // from Sell BTC for ADA
+        let order2AdaPerBtc = null; // from Sell ADA for BTC
 
         function formatDate(timestampMs) {
             const d = new Date(timestampMs);
@@ -117,11 +144,16 @@
         }
 
         function getSeries(rows, pair) {
-            // rows have: { date, btcUsd, adaUsd, ratio } where ratio = BTC/ADA (ADA per BTC)
+            // rows have: { date, btcUsd, adaUsd, ratio } where ratio = ADA per BTC (ADA/BTC)
             if (pair === 'ADA/BTC') {
-                return rows.map(r => ({ x: r.date, y: r.adaUsd / r.btcUsd })); // BTC per ADA
+                return rows.map(r => ({ x: r.date, y: r.ratio })); // ADA per BTC
             }
-            return rows.map(r => ({ x: r.date, y: r.ratio })); // ADA per BTC
+            return rows.map(r => ({ x: r.date, y: r.adaUsd / r.btcUsd })); // BTC per ADA
+        }
+
+        function getYFromAdaPerBtc(adaPerBtc, pair) {
+            if (!isFinite(adaPerBtc) || adaPerBtc <= 0) return NaN;
+            return pair === 'ADA/BTC' ? adaPerBtc : (1 / adaPerBtc);
         }
 
         function drawChart(rows, pair) {
@@ -170,6 +202,31 @@
             });
             ctx.stroke();
 
+            // order lines (horizontal)
+            const orderLines = [];
+            if (order1AdaPerBtc != null) orderLines.push({ value: getYFromAdaPerBtc(order1AdaPerBtc, pair), color: '#e33', label: 'Sell BTC→ADA' });
+            if (order2AdaPerBtc != null) orderLines.push({ value: getYFromAdaPerBtc(order2AdaPerBtc, pair), color: '#36c', label: 'Sell ADA→BTC' });
+            orderLines.forEach((line, idx) => {
+                if (!isFinite(line.value)) return;
+                if (line.value < minY || line.value > maxY) return;
+                const y = padTop + (1 - (line.value - minY) / (maxY - minY)) * plotH;
+                ctx.save();
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = line.color;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(padLeft, y);
+                ctx.lineTo(padLeft + plotW, y);
+                ctx.stroke();
+                ctx.restore();
+                // label at right
+                ctx.fillStyle = line.color;
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'bottom';
+                const labelText = line.label + ' @ ' + line.value.toLocaleString(undefined, { maximumFractionDigits: 8 });
+                ctx.fillText(labelText, padLeft + plotW, Math.max(padTop + 10, y - 2 - (idx * 14)));
+            });
+
             // x-axis ticks and labels (dates)
             const maxTicksByWidth = Math.max(2, Math.min(8, Math.floor(plotW / 100)));
             const tickCount = Math.min(maxTicksByWidth, series.length);
@@ -203,6 +260,32 @@
             ctx.textAlign = 'left';
             ctx.textBaseline = 'alphabetic';
             ctx.fillText(pair + ' (daily close)', padLeft, padTop - 2 + 12);
+        }
+
+        function updateOrdersAndRedraw() {
+            const btcSold = parseFloat(sellBtcBtc.value);
+            const adaGet = parseFloat(sellBtcAda.value);
+            if (isFinite(btcSold) && btcSold > 0 && isFinite(adaGet) && adaGet > 0) {
+                order1AdaPerBtc = adaGet / btcSold;
+                sellBtcSummary.textContent = 'ADA/BTC: ' + order1AdaPerBtc.toLocaleString(undefined, { maximumFractionDigits: 8 }) +
+                    ' | BTC/ADA: ' + (1 / order1AdaPerBtc).toLocaleString(undefined, { maximumFractionDigits: 8 });
+            } else {
+                order1AdaPerBtc = null;
+                sellBtcSummary.textContent = '';
+            }
+
+            const adaSold = parseFloat(sellAdaAda.value);
+            const btcGet = parseFloat(sellAdaBtc.value);
+            if (isFinite(adaSold) && adaSold > 0 && isFinite(btcGet) && btcGet > 0) {
+                order2AdaPerBtc = adaSold / btcGet;
+                sellAdaSummary.textContent = 'ADA/BTC: ' + order2AdaPerBtc.toLocaleString(undefined, { maximumFractionDigits: 8 }) +
+                    ' | BTC/ADA: ' + (1 / order2AdaPerBtc).toLocaleString(undefined, { maximumFractionDigits: 8 });
+            } else {
+                order2AdaPerBtc = null;
+                sellAdaSummary.textContent = '';
+            }
+
+            drawChart(currentRows, pairSelect.value);
         }
 
         async function loadData(daysParam) {
@@ -290,6 +373,12 @@
         
         pairSelect.addEventListener('change', function() {
             drawChart(currentRows, pairSelect.value);
+        });
+
+        // order inputs
+        [sellBtcBtc, sellBtcAda, sellAdaAda, sellAdaBtc].forEach(el => {
+            el.addEventListener('input', updateOrdersAndRedraw);
+            el.addEventListener('change', updateOrdersAndRedraw);
         });
 
         // initial load
