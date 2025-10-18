@@ -30,8 +30,16 @@
             <option value="7">Past week</option>
             <option value="1">Past day</option>
         </select>
+        <label for="pair-select" style="font-size:14px; margin-left:8px">Pair:</label>
+        <select id="pair-select" style="font-size:14px; padding:4px">
+            <option value="ADA/BTC" selected>ADA/BTC</option>
+            <option value="BTC/ADA">BTC/ADA</option>
+        </select>
     </div>
     <div id="status" class="note" aria-live="polite"></div>
+    <div style="margin: 8px 0 12px 0;">
+        <canvas id="chart" height="240" style="width:100%; display:block; background:#fff; border:1px solid #eee"></canvas>
+    </div>
     <table id="data-table">
         <thead>
             <tr>
@@ -50,8 +58,12 @@
     (function() {
         const tbody = document.querySelector('#data-table tbody');
         const rangeSelect = document.getElementById('range-select');
+        const pairSelect = document.getElementById('pair-select');
         const statusEl = document.getElementById('status');
+        const canvas = document.getElementById('chart');
+        const ctx = canvas.getContext('2d');
         let currentController = null;
+        let currentRows = [];
 
         function formatDate(timestampMs) {
             const d = new Date(timestampMs);
@@ -104,6 +116,74 @@
             }
         }
 
+        function getSeries(rows, pair) {
+            // rows have: { date, btcUsd, adaUsd, ratio } where ratio = BTC/ADA (ADA per BTC)
+            if (pair === 'ADA/BTC') {
+                return rows.map(r => ({ x: r.date, y: r.adaUsd / r.btcUsd })); // BTC per ADA
+            }
+            return rows.map(r => ({ x: r.date, y: r.ratio })); // ADA per BTC
+        }
+
+        function drawChart(rows, pair) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            const cssHeight = 240; // matches canvas height attribute
+            const cssWidth = Math.max(200, Math.floor(rect.width));
+            canvas.width = Math.round(cssWidth * dpr);
+            canvas.height = Math.round(cssHeight * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+            const series = getSeries(rows, pair);
+            if (!series.length) return;
+
+            const padLeft = 40, padRight = 10, padTop = 10, padBottom = 24;
+            const plotW = cssWidth - padLeft - padRight;
+            const plotH = cssHeight - padTop - padBottom;
+            const values = series.map(p => p.y).filter(v => Number.isFinite(v));
+            let minY = Math.min(...values);
+            let maxY = Math.max(...values);
+            if (!isFinite(minY) || !isFinite(maxY)) return;
+            if (minY === maxY) {
+                const delta = Math.abs(minY) || 1;
+                minY -= delta * 0.01;
+                maxY += delta * 0.01;
+            }
+
+            // axes
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padLeft, padTop);
+            ctx.lineTo(padLeft, padTop + plotH);
+            ctx.lineTo(padLeft + plotW, padTop + plotH);
+            ctx.stroke();
+
+            // line
+            ctx.strokeStyle = pair === 'ADA/BTC' ? '#0a7' : '#a70';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            series.forEach((p, i) => {
+                const x = padLeft + (i / Math.max(1, series.length - 1)) * plotW;
+                const y = padTop + (1 - (p.y - minY) / (maxY - minY)) * plotH;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // y labels: min/max
+            ctx.fillStyle = '#555';
+            ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(minY.toLocaleString(undefined, { maximumFractionDigits: 8 }), padLeft - 6, padTop + plotH);
+            ctx.fillText(maxY.toLocaleString(undefined, { maximumFractionDigits: 8 }), padLeft - 6, padTop);
+
+            // title label
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillText(pair + ' (daily close)', padLeft, padTop - 2 + 12);
+        }
+
         async function loadData(daysParam) {
             // Binance supports up to 1000 candles by limit; map max to 1000
             const queryDays = daysParam === 'max' ? '1000' : String(daysParam);
@@ -116,7 +196,7 @@
             const timeoutId = setTimeout(() => currentController && currentController.abort(), 15000);
 
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Loading…</td></tr>';
-            setStatus('Loading ' + (queryDays === '365' && daysParam === 'max' ? 'full history (limited to 1 year for reliability)…' : 'data…'));
+            setStatus('Loading ' + (queryDays === '1000' && daysParam === 'max' ? 'full history (limited to 1000 days)…' : 'data…'));
             rangeSelect.disabled = true;
 
             try {
@@ -167,6 +247,8 @@
                         '<td>' + formatAda(r.ratio) + '</td>';
                     tbody.appendChild(tr);
                 });
+                currentRows = rows;
+                drawChart(currentRows, pairSelect.value);
                 setStatus('Loaded ' + rows.length + ' days.');
             } catch (err) {
                 if (err && err.name === 'AbortError') {
@@ -184,9 +266,17 @@
         rangeSelect.addEventListener('change', function() {
             loadData(rangeSelect.value);
         });
+        
+        pairSelect.addEventListener('change', function() {
+            drawChart(currentRows, pairSelect.value);
+        });
 
         // initial load
         loadData(rangeSelect.value);
+        
+        window.addEventListener('resize', function() {
+            drawChart(currentRows, pairSelect.value);
+        });
     })();
     </script>
 </body>
