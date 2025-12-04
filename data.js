@@ -38,5 +38,10 @@ const tools = [
         title: "Dice Roller",
         description: "Roll dice and see the results",
         path: "dice.html"
+    },
+    {
+        title: "HTML Renderer",
+        description: "Paste HTML and view it rendered in a sandboxed preview",
+        path: "htmlRenderer.html"
     }
 ];

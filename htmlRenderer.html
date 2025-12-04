@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Renderer</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+        h1 {
+            margin: 0 0 16px;
+            color: #60a5fa;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .controls label {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            user-select: none;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-auto-rows: minmax(200px, auto);
+            gap: 16px;
+        }
+        @media (min-width: 900px) {
+            .container {
+                grid-template-columns: 1fr 1fr;
+                grid-auto-rows: minmax(400px, auto);
+                height: calc(100vh - 120px);
+            }
+        }
+        .panel {
+            background-color: #2d2d2d;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-header {
+            padding: 10px 12px;
+            background-color: #242424;
+            border-bottom: 1px solid #3a3a3a;
+            color: #9ca3af;
+            font-size: 14px;
+        }
+        textarea {
+            flex: 1;
+            width: 100%;
+            background-color: #1f1f1f;
+            color: #e0e0e0;
+            border: none;
+            padding: 12px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            line-height: 1.4;
+        }
+        iframe {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background-color: #ffffff;
+        }
+        button {
+            background-color: #3b82f6;
+            color: #ffffff;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #2563eb;
+        }
+        .note {
+            color: #9ca3af;
+            font-size: 12px;
+        }
+        .spacer {
+            flex: 1;
+        }
+    </style>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' blob: data:; img-src * data: blob:; media-src * data: blob:; connect-src *; style-src 'self' 'unsafe-inline'; frame-src 'self' blob: data:; worker-src 'self' blob: data:; object-src 'none'; base-uri 'none'">
+</head>
+<body>
+    <h1>HTML Renderer</h1>
+    <div class="controls">
+        <button id="renderBtn" title="Render the HTML into the preview">Render</button>
+        <label title="Update preview as you type">
+            <input type="checkbox" id="livePreview" checked>
+            Live preview
+        </label>
+        <label title="Allow scripts to run inside the preview (use with caution)">
+            <input type="checkbox" id="allowScripts">
+            Allow scripts
+        </label>
+        <div class="spacer"></div>
+        <span class="note">Paste HTML below. Preview is sandboxed; scripts are blocked unless enabled.</span>
+    </div>
+    <div class="container">
+        <div class="panel">
+            <div class="panel-header">Input HTML</div>
+            <textarea id="htmlInput" placeholder="<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset=&quot;utf-8&quot; />
+    <title>Example</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; }
+      h1 { color: #2563eb; }
+      .card { padding: 1rem; border: 1px solid #ddd; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>Hello!</h1>
+    <div class=&quot;card&quot;>This is your rendered HTML.</div>
+  </body>
+</html>"></textarea>
+        </div>
+        <div class="panel">
+            <div class="panel-header">Preview</div>
+            <iframe id="preview" sandbox=""></iframe>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const inputEl = document.getElementById('htmlInput');
+            const iframeEl = document.getElementById('preview');
+            const renderBtn = document.getElementById('renderBtn');
+            const livePreviewEl = document.getElementById('livePreview');
+            const allowScriptsEl = document.getElementById('allowScripts');
+
+            let debounceTimer = null;
+
+            function setSandbox(allowScripts) {
+                // Default sandbox blocks scripts and isolates the document.
+                // Optionally allow scripts if the user explicitly enables it.
+                const flags = [
+                    'allow-forms',
+                    'allow-modals',
+                    'allow-pointer-lock',
+                    'allow-popups',
+                    'allow-presentation',
+                    'allow-top-navigation-by-user-activation'
+                ];
+                if (allowScripts) {
+                    flags.push('allow-scripts');
+                }
+                iframeEl.setAttribute('sandbox', flags.join(' '));
+            }
+
+            function render() {
+                setSandbox(allowScriptsEl.checked);
+                // Use srcdoc to avoid creating blob URLs and keep everything self-contained
+                iframeEl.srcdoc = inputEl.value;
+            }
+
+            function scheduleRender() {
+                if (!livePreviewEl.checked) return;
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(render, 200);
+            }
+
+            // Wire up events
+            inputEl.addEventListener('input', scheduleRender);
+            renderBtn.addEventListener('click', render);
+            allowScriptsEl.addEventListener('change', render);
+            livePreviewEl.addEventListener('change', function () {
+                if (livePreviewEl.checked) {
+                    render();
+                }
+            });
+
+            // Initial render
+            render();
+        })();
+    </script>
+</body>
+</html>
+
