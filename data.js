@@ -43,5 +43,10 @@ const tools = [
         title: "HTML Renderer",
         description: "Paste HTML and view it rendered in a sandboxed preview",
         path: "htmlRenderer.html"
+    },
+    {
+        title: "JWT Decoder",
+        description: "Decode JSON Web Tokens to inspect the header, payload, and claims",
+        path: "jwtDecoder.html"
     }
 ];
