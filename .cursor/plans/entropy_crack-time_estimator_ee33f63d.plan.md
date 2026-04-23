@@ -4,16 +4,16 @@ overview: Add a crack-time estimator based on entropy bits using an RTX 5090 off
 todos:
   - id: add-cracktime-constants
     content: Add RTX 5090 guesses/sec model constant and document assumption in code.
-    status: pending
+    status: completed
   - id: add-pure-estimator-functions
     content: Implement pure functions to convert entropy bits to average crack time and human-readable durations.
-    status: pending
+    status: completed
   - id: wire-ui-estimator
     content: Add crack-time indicator and assumptions text to the existing entropy display section.
-    status: pending
+    status: completed
   - id: validate-estimates
     content: Verify sample bit values produce expected time scales and handle Invalid cfg gracefully.
-    status: pending
+    status: completed
 isProject: false
 ---
 
