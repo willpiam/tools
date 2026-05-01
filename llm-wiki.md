@@ -2,7 +2,7 @@
 
 A pattern for building personal knowledge bases using LLMs.
 
-This is an idea file, it is designed to be copy pasted to your own LLM Agent (e.g. OpenAI Codex, Claude Code, OpenCode / Pi, Cursor, or etc.). Its goal is to communicate the high level idea, but your agent will build out the specifics in collaboration with you.
+This is an idea file, it is designed to be copy pasted to your own LLM Agent (e.g. OpenAI Codex, Claude Code, OpenCode / Pi, or etc.). Its goal is to communicate the high level idea, but your agent will build out the specifics in collaboration with you.
 
 ## The core idea
 
@@ -73,3 +73,11 @@ The idea is related in spirit to Vannevar Bush's Memex (1945) — a personal, cu
 ## Note
 
 This document is intentionally abstract. It describes the idea, not a specific implementation. The exact directory structure, the schema conventions, the page formats, the tooling — all of that will depend on your domain, your preferences, and your LLM of choice. Everything mentioned above is optional and modular — pick what's useful, ignore what isn't. For example: your sources might be text-only, so you don't need image handling at all. Your wiki might be small enough that the index file is all you need, no search engine required. You might not care about slide decks and just want markdown pages. You might want a completely different set of output formats. The right way to use this is to share it with your LLM agent and work together to instantiate a version that fits your needs. The document's only job is to communicate the pattern. Your LLM can figure out the rest.
+
+
+## Additional
+
+Seeing as the above seeks to be abstract I have provided some additional refinements.  
+
+- The raw folder should be inside the wiki folder
+- create cursor skills /wiki-ingest, /wiki-query, and /wiki-lint. This can be done with the /create-skill skill

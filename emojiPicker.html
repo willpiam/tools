@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Emoji Picker</title>
+    <style>
+        :root {
+            --bg: #1a1a1a;
+            --panel: #2d2d2d;
+            --border: #3a3a3a;
+            --text: #e0e0e0;
+            --muted: #9ca3af;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 16px;
+            padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100dvh;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            color: #60a5fa;
+            font-size: clamp(1.25rem, 4vw, 1.75rem);
+        }
+
+        .subtitle {
+            margin: 0 0 16px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .search-wrap {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: linear-gradient(var(--bg) 70%, transparent);
+            padding-bottom: 12px;
+            margin: 0 -4px 8px;
+            padding-top: 4px;
+        }
+
+        #q {
+            width: 100%;
+            max-width: 100%;
+            font-size: 16px;
+            padding: 12px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #1f1f1f;
+            color: var(--text);
+            outline: none;
+        }
+
+        #q:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+        }
+
+        .meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 8px;
+            min-height: 1.5em;
+        }
+
+        #count {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        #status {
+            color: #4ade80;
+            font-size: 14px;
+            min-height: 1.4em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        @media (min-width: 600px) {
+            .grid {
+                grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
+                gap: 6px;
+            }
+        }
+
+        @media (min-width: 900px) {
+            body {
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+
+            .grid {
+                grid-template-columns: repeat(auto-fill, minmax(3.75rem, 1fr));
+            }
+        }
+
+        .emoji-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-height: 48px;
+            min-width: 0;
+            padding: 8px 6px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--panel);
+            color: var(--text);
+            cursor: pointer;
+            font: inherit;
+            transition: background 0.15s, border-color 0.15s, transform 0.1s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .emoji-btn:hover {
+            background: #363636;
+            border-color: #4b5563;
+        }
+
+        .emoji-btn:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        .emoji-btn:active {
+            transform: scale(0.97);
+        }
+
+        .emoji-char {
+            font-size: clamp(1.5rem, 5vw, 2rem);
+            line-height: 1;
+        }
+
+        .emoji-name {
+            font-size: 10px;
+            line-height: 1.2;
+            color: var(--muted);
+            text-align: center;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-word;
+        }
+
+        @media (min-width: 900px) {
+            .emoji-name {
+                font-size: 11px;
+                -webkit-line-clamp: 3;
+            }
+        }
+
+        #more {
+            display: block;
+            width: 100%;
+            max-width: 320px;
+            margin: 0 auto 24px;
+            padding: 12px 16px;
+            font-size: 15px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+        }
+
+        #more:hover {
+            background: var(--accent-hover);
+        }
+
+        #more:focus-visible {
+            outline: 2px solid #93c5fd;
+            outline-offset: 2px;
+        }
+
+        #more:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .empty {
+            text-align: center;
+            color: var(--muted);
+            padding: 32px 16px;
+            font-size: 15px;
+        }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Emoji Picker</h1>
+    <p class="subtitle">Search by CLDR short name, tap or click an emoji to copy it. Everything runs in your browser.</p>
+
+    <div class="search-wrap">
+        <label for="q" class="visually-hidden">Search emojis</label>
+        <input type="search" id="q" placeholder="Search (e.g. grinning, heart, flag)" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+        <div class="meta">
+            <span id="count" aria-live="polite"></span>
+            <span id="status" role="status" aria-live="polite"></span>
+        </div>
+    </div>
+
+    <div id="grid" class="grid"></div>
+    <button type="button" id="more" hidden>Load more</button>
+    <p id="empty" class="empty" hidden>No matches. Try different words.</p>
+
+    <script src="emojiData.js"></script>
+    <script>
+        (function () {
+            const PAGE = 200;
+            const raw = window.EMOJI_DATA || [];
+            const items = raw.map(function (row) {
+                return { char: row[0], name: row[1], key: (row[1] + ' ' + row[0]).toLowerCase() };
+            });
+
+            const qEl = document.getElementById('q');
+            const gridEl = document.getElementById('grid');
+            const countEl = document.getElementById('count');
+            const statusEl = document.getElementById('status');
+            const moreBtn = document.getElementById('more');
+            const emptyEl = document.getElementById('empty');
+
+            let filtered = items.slice();
+            let shown = 0;
+            let debounceId = null;
+            let statusClearId = null;
+
+            function wordsMatch(nameLower, parts) {
+                for (let i = 0; i < parts.length; i++) {
+                    if (parts[i] && nameLower.indexOf(parts[i]) === -1) return false;
+                }
+                return true;
+            }
+
+            function runFilter() {
+                const q = qEl.value.trim().toLowerCase();
+                if (!q) {
+                    filtered = items.slice();
+                    return;
+                }
+                const parts = q.split(/\s+/).filter(Boolean);
+                filtered = [];
+                for (let i = 0; i < items.length; i++) {
+                    if (wordsMatch(items[i].key, parts)) filtered.push(items[i]);
+                }
+            }
+
+            function setStatus(msg) {
+                statusEl.textContent = msg;
+                if (statusClearId) clearTimeout(statusClearId);
+                if (msg) {
+                    statusClearId = setTimeout(function () {
+                        statusEl.textContent = '';
+                        statusClearId = null;
+                    }, 2000);
+                }
+            }
+
+            function copyText(text) {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    return navigator.clipboard.writeText(text).then(function () { return true; }).catch(function () {
+                        return fallbackCopy(text);
+                    });
+                }
+                return Promise.resolve(fallbackCopy(text));
+            }
+
+            function fallbackCopy(text) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.setAttribute('readonly', '');
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                ta.style.top = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                ta.setSelectionRange(0, text.length);
+                let ok = false;
+                try {
+                    ok = document.execCommand('copy');
+                } catch (e) {
+                    ok = false;
+                }
+                document.body.removeChild(ta);
+                return ok;
+            }
+
+            function renderAppend(from, to) {
+                const frag = document.createDocumentFragment();
+                for (let i = from; i < to; i++) {
+                    const it = filtered[i];
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'emoji-btn';
+                    btn.setAttribute('aria-label', 'Copy ' + it.name + ', ' + it.char);
+                    btn.dataset.char = it.char;
+
+                    const ch = document.createElement('span');
+                    ch.className = 'emoji-char';
+                    ch.textContent = it.char;
+                    ch.setAttribute('aria-hidden', 'true');
+
+                    const nm = document.createElement('span');
+                    nm.className = 'emoji-name';
+                    nm.textContent = it.name;
+
+                    btn.appendChild(ch);
+                    btn.appendChild(nm);
+
+                    btn.addEventListener('click', function () {
+                        copyText(it.char).then(function (ok) {
+                            setStatus(ok ? 'Copied ' + it.char : 'Could not copy — try again');
+                        });
+                    });
+
+                    frag.appendChild(btn);
+                }
+                gridEl.appendChild(frag);
+            }
+
+            function updateCount() {
+                const total = filtered.length;
+                const vis = Math.min(shown, total);
+                if (total === 0) {
+                    countEl.textContent = 'No matches';
+                } else {
+                    countEl.textContent = 'Showing ' + vis + ' of ' + total + ' match' + (total === 1 ? '' : 'es');
+                }
+            }
+
+            function syncMoreButton() {
+                const total = filtered.length;
+                if (total === 0 || shown >= total) {
+                    moreBtn.hidden = true;
+                    moreBtn.disabled = true;
+                } else {
+                    moreBtn.hidden = false;
+                    moreBtn.disabled = false;
+                    moreBtn.textContent = 'Load more (' + Math.min(PAGE, total - shown) + ')';
+                }
+            }
+
+            function render(reset) {
+                runFilter();
+                if (reset) {
+                    gridEl.innerHTML = '';
+                    shown = 0;
+                }
+
+                emptyEl.hidden = filtered.length > 0;
+                gridEl.hidden = filtered.length === 0;
+
+                const total = filtered.length;
+                const next = Math.min(shown + PAGE, total);
+                if (next > shown) {
+                    renderAppend(shown, next);
+                    shown = next;
+                }
+
+                updateCount();
+                syncMoreButton();
+            }
+
+            moreBtn.addEventListener('click', function () {
+                render(false);
+            });
+
+            qEl.addEventListener('input', function () {
+                clearTimeout(debounceId);
+                debounceId = setTimeout(function () {
+                    render(true);
+                }, 120);
+            });
+
+            qEl.addEventListener('search', function () {
+                render(true);
+            });
+
+            render(true);
+            qEl.focus();
+        })();
+    </script>
+</body>
+</html>
