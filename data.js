@@ -1,8 +1,8 @@
 const tools = [
     {
-        title: "Text and Hex Converter",
-        description: "Convert between text and hexadecimal formats",
-        path: "textandhex.html"
+        title: "Encoding Converter",
+        description: "Convert between text, hex, base64, and base64Url formats",
+        path: "encodingConverter.html"
     },
     {
         title: "Kiss My AES",
@@ -53,5 +53,10 @@ const tools = [
         title: "Emoji Picker",
         description: "Search Unicode emoji by name and copy them with one tap",
         path: "emojiPicker.html"
+    },
+    {
+        title: "SHA-256 Lowest Hash Miner",
+        description: "Mine for the lowest SHA-256 hash using input + nonce with pause and JSON import/export",
+        path: "sha256Miner.html"
     }
 ];
