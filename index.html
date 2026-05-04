@@ -91,10 +91,17 @@
     <script src="data.js"></script>
     <script>
         const toolsList = document.getElementById('tools-list');
+        function resolveToolHref(tool) {
+            if (tool.mode === "external") {
+                return tool.url || "#";
+            }
+            return tool.path || "#";
+        }
+
         tools.forEach(tool => {
             const li = document.createElement('li');
             li.innerHTML = `
-                <a href="${tool.path}" target="_blank" rel="noopener noreferrer">${tool.title}</a>
+                <a href="${resolveToolHref(tool)}" target="_blank" rel="noopener noreferrer">${tool.title}</a>
                 <div class="tool-description">${tool.description}</div>
             `;
             toolsList.appendChild(li);

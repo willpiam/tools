@@ -58,5 +58,16 @@ const tools = [
         title: "SHA-256 Lowest Hash Miner",
         description: "Mine for the lowest SHA-256 hash using input + nonce with pause and JSON import/export",
         path: "sha256Miner.html"
+    },
+    {
+        title: "File SHA-256 Hasher",
+        description: "Upload a file, compute its SHA-256 hash, and copy the result",
+        path: "fileSha256.html"
+    },
+    {
+        title: "Written In Stone: An On-Chain Messaging and Commitment Tool",
+        description: `Write arbitrary data to the blockchain with a flexible commitment toolkit. You can commit plain text directly, hash text before committing, or hash files and commit the resulting digest. Encrypted text commitments are also supported using AES. The tool works on both Ethereum and Cardano, using Input Data Messages on Ethereum and CIP-20 on Cardano. On Cardano, you can also use an NFT to link multiple commitments into a verifiable chain.`,
+        mode: "external", // indicates that this tool is hosted elsewhere... a url field is provided in place of a path field
+        url: "https://cardano-tools-delta.vercel.app/commit"
     }
 ];
