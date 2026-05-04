@@ -66,7 +66,13 @@ const tools = [
     },
     {
         title: "Written In Stone: An On-Chain Messaging and Commitment Tool",
-        description: `Write arbitrary data to the blockchain with a flexible commitment toolkit. You can commit plain text directly, hash text before committing, or hash files and commit the resulting digest. Encrypted text commitments are also supported using AES. The tool works on both Ethereum and Cardano, using Input Data Messages on Ethereum and CIP-20 on Cardano. On Cardano, you can also use an NFT to link multiple commitments into a verifiable chain.`,
+        description: `
+        Write arbitrary data to the blockchain with a flexible commitment toolkit. You can commit plain text directly, hash text before committing, or hash files and commit the resulting digest. Encrypted text commitments are also supported using AES.
+
+        The tool supports both Ethereum and Cardano, using Input Data Messages on Ethereum and CIP-20 on Cardano. On Cardano, you can also use an NFT to link multiple commitments.
+        
+        After each commitment, the tool offers a downloadable "reveal" file which makes it easy to find the transaction, verify hashes, and potentially decrypt messages.
+`,
         mode: "external", // indicates that this tool is hosted elsewhere... a url field is provided in place of a path field
         url: "https://cardano-tools-delta.vercel.app/commit"
     }
