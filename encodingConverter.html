@@ -181,6 +181,7 @@
         const swapEncodingsBtn = document.getElementById("swap-encodings-btn");
         const textEncoder = new TextEncoder();
         const textDecoder = new TextDecoder("utf-8", { fatal: true });
+        const supportedEncodings = new Set(["text", "hex", "base64", "base64url"]);
 
         function bytesToHex(bytes) {
             return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -292,6 +293,37 @@
             errorMessage.textContent = "";
         }
 
+        function readConfigFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const from = params.get("from");
+            const to = params.get("to");
+
+            return {
+                from: supportedEncodings.has(from) ? from : null,
+                to: supportedEncodings.has(to) ? to : null
+            };
+        }
+
+        function writeConfigToUrl() {
+            const params = new URLSearchParams(window.location.search);
+            params.set("from", inputEncoding.value);
+            params.set("to", outputEncoding.value);
+
+            const nextQuery = params.toString();
+            const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
+            window.history.replaceState(null, "", nextUrl);
+        }
+
+        function hydrateConfigFromUrl() {
+            const { from, to } = readConfigFromUrl();
+            if (from) {
+                inputEncoding.value = from;
+            }
+            if (to) {
+                outputEncoding.value = to;
+            }
+        }
+
         async function copyTextToClipboard(text) {
             if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
                 await navigator.clipboard.writeText(text);
@@ -340,6 +372,7 @@
             inputEncoding.value = outputEncoding.value;
             outputEncoding.value = from;
             updatePlaceholder();
+            writeConfigToUrl();
 
             if (outputBox.value) {
                 inputBox.value = outputBox.value;
@@ -350,10 +383,14 @@
 
         inputEncoding.addEventListener("change", () => {
             updatePlaceholder();
+            writeConfigToUrl();
             clearError();
         });
 
-        outputEncoding.addEventListener("change", clearError);
+        outputEncoding.addEventListener("change", () => {
+            writeConfigToUrl();
+            clearError();
+        });
 
         inputBox.addEventListener("keydown", (event) => {
             if (event.key === "Enter" && !event.shiftKey) {
@@ -381,7 +418,9 @@
             }
         });
 
+        hydrateConfigFromUrl();
         updatePlaceholder();
+        writeConfigToUrl();
     </script>
 </body>
 </html>

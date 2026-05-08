@@ -60,9 +60,10 @@ const tools = [
         path: "sha256Miner.html"
     },
     {
-        title: "File SHA-256 Hasher",
-        description: "Upload a file, compute its SHA-256 hash, and copy the result",
-        path: "fileSha256.html"
+        title: "Text / File SHA-256 Hasher",
+        description:
+            "SHA-256 updates live from UTF-8 text or from a file upload; copy the digest. Optionally prepend random salt in text mode as salt::message.",
+        path: "textFileSha256.html"
     },
     {
         title: "Written In Stone: An On-Chain Messaging and Commitment Tool",
