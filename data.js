@@ -40,6 +40,11 @@ const tools = [
         path: "dice.html"
     },
     {
+        title: "Interval Timers",
+        description: "Create multiple looping timers with visual countdown pies and gentle chimes",
+        path: "intervalTimers.html"
+    },
+    {
         title: "HTML Renderer",
         description: "Paste HTML and view it rendered in a sandboxed preview",
         path: "htmlRenderer.html"

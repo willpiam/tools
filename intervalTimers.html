@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interval Timers</title>
+    <style>
+        :root {
+            --bg: #111827;
+            --panel: #1f2937;
+            --panel-strong: #172033;
+            --border: #374151;
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --accent: #60a5fa;
+            --accent-strong: #2563eb;
+            --danger: #ef4444;
+            --success: #34d399;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            padding: 24px;
+            background:
+                radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 32rem),
+                radial-gradient(circle at bottom right, rgba(52, 211, 153, 0.12), transparent 30rem),
+                var(--bg);
+            color: var(--text);
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin: 0;
+            color: #f9fafb;
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            letter-spacing: -0.04em;
+        }
+
+        .subtitle {
+            max-width: 680px;
+            margin: 10px 0 0;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .hero {
+            margin-bottom: 24px;
+        }
+
+        .panel {
+            background: rgba(31, 41, 55, 0.86);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 20px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(18px);
+        }
+
+        .creator {
+            display: grid;
+            grid-template-columns: minmax(180px, 1.4fr) minmax(120px, 0.7fr) minmax(130px, 0.7fr) auto auto;
+            gap: 12px;
+            align-items: end;
+            padding: 18px;
+            margin-bottom: 22px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        label {
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        input,
+        select {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: #111827;
+            color: var(--text);
+            font: inherit;
+            padding: 12px 13px;
+            outline: none;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
+        }
+
+        button {
+            border: 0;
+            border-radius: 12px;
+            color: #ffffff;
+            cursor: pointer;
+            font: inherit;
+            font-weight: 700;
+            padding: 12px 16px;
+            transition: transform 0.16s ease, background 0.16s ease, opacity 0.16s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .primary {
+            background: linear-gradient(135deg, var(--accent-strong), #7c3aed);
+        }
+
+        .secondary {
+            background: #4b5563;
+        }
+
+        .danger {
+            background: rgba(239, 68, 68, 0.18);
+            color: #fecaca;
+            border: 1px solid rgba(239, 68, 68, 0.35);
+        }
+
+        .status {
+            min-height: 22px;
+            margin: -8px 0 18px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .status.ok {
+            color: var(--success);
+        }
+
+        .status.err {
+            color: #fca5a5;
+        }
+
+        .timer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 18px;
+        }
+
+        .timer-card {
+            --timer-color: #60a5fa;
+            position: relative;
+            overflow: hidden;
+            padding: 18px;
+        }
+
+        .timer-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at top right, color-mix(in srgb, var(--timer-color), transparent 74%), transparent 48%);
+            opacity: 0.9;
+            pointer-events: none;
+        }
+
+        .timer-card.chiming {
+            animation: chimePulse 0.7s ease;
+        }
+
+        @keyframes chimePulse {
+            0% { box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+            35% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--timer-color), transparent 55%); }
+            100% { box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+        }
+
+        .timer-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .timer-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .timer-name {
+            margin: 0;
+            color: #f9fafb;
+            font-size: 18px;
+            word-break: break-word;
+        }
+
+        .timer-duration {
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .color-dot {
+            width: 14px;
+            height: 14px;
+            flex: 0 0 auto;
+            margin-top: 4px;
+            border-radius: 999px;
+            background: var(--timer-color);
+            box-shadow: 0 0 22px var(--timer-color);
+        }
+
+        .timer-body {
+            display: grid;
+            grid-template-columns: 132px 1fr;
+            gap: 18px;
+            align-items: center;
+        }
+
+        .progress-pie {
+            --progress: 100%;
+            width: 132px;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: conic-gradient(var(--timer-color) var(--progress), rgba(255, 255, 255, 0.08) 0);
+            box-shadow: inset 0 0 24px rgba(255, 255, 255, 0.05), 0 18px 40px rgba(0, 0, 0, 0.24);
+        }
+
+        .progress-pie::after {
+            content: "";
+            width: 74%;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            background: var(--panel-strong);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+        }
+
+        .time-readout {
+            position: absolute;
+            width: 132px;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .timer-meta {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .pitch {
+            color: color-mix(in srgb, var(--timer-color), #ffffff 34%);
+            font-weight: 700;
+        }
+
+        .timer-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .timer-actions button {
+            padding: 9px 11px;
+            font-size: 13px;
+        }
+
+        .empty {
+            padding: 28px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 820px) {
+            body {
+                padding: 16px;
+            }
+
+            .creator {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .creator button {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .creator {
+                grid-template-columns: 1fr;
+            }
+
+            .timer-body {
+                grid-template-columns: 1fr;
+                justify-items: center;
+                text-align: center;
+            }
+
+            .timer-actions {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <header class="hero">
+            <h1>Interval Timers</h1>
+            <p class="subtitle">Create looping timers for focus blocks, stretches, breathing cycles, or anything else that needs a gentle recurring cue.</p>
+        </header>
+
+        <form class="creator panel" id="timerForm">
+            <div class="field">
+                <label for="timerLabel">Label</label>
+                <input id="timerLabel" type="text" maxlength="42" placeholder="Stretch, focus, tea...">
+            </div>
+            <div class="field">
+                <label for="durationValue">Duration</label>
+                <input id="durationValue" type="number" min="1" max="1440" step="1" value="5" required>
+            </div>
+            <div class="field">
+                <label for="durationUnit">Unit</label>
+                <select id="durationUnit">
+                    <option value="seconds">Seconds</option>
+                    <option value="minutes" selected>Minutes</option>
+                    <option value="hours">Hours</option>
+                </select>
+            </div>
+            <button class="primary" type="submit">Add Timer</button>
+            <button class="secondary" type="button" id="saveBtn">Save URL</button>
+        </form>
+
+        <div class="status" id="status" aria-live="polite"></div>
+
+        <section class="timer-grid" id="timerGrid" aria-live="polite"></section>
+        <section class="empty panel hidden" id="emptyState">No timers yet. Add one above to start a looping interval.</section>
+    </main>
+
+    <script>
+        const CONFIG_PARAM = "cfg";
+        const CONFIG_VERSION = 1;
+        const MAX_TIMERS = 24;
+        const MAX_DURATION_SECONDS = 24 * 60 * 60;
+        const COLOR_PALETTE = [
+            "#60a5fa", "#34d399", "#f472b6", "#fbbf24", "#a78bfa", "#fb7185",
+            "#22d3ee", "#c084fc", "#4ade80", "#f97316", "#38bdf8", "#e879f9"
+        ];
+        const PITCHES = [523.25, 587.33, 659.25, 698.46, 783.99, 880, 987.77, 1046.5, 440, 493.88, 554.37, 622.25];
+
+        const timerForm = document.getElementById("timerForm");
+        const timerLabelInput = document.getElementById("timerLabel");
+        const durationValueInput = document.getElementById("durationValue");
+        const durationUnitInput = document.getElementById("durationUnit");
+        const saveBtn = document.getElementById("saveBtn");
+        const statusEl = document.getElementById("status");
+        const timerGrid = document.getElementById("timerGrid");
+        const emptyState = document.getElementById("emptyState");
+        const textEncoder = new TextEncoder();
+        const textDecoder = new TextDecoder();
+
+        let timers = [];
+        let audioContext = null;
+        let statusTimeout = null;
+
+        function createId() {
+            if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
+                return globalThis.crypto.randomUUID();
+            }
+            return `timer-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+        }
+
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function colorForIndex(index) {
+            if (index < COLOR_PALETTE.length) {
+                return COLOR_PALETTE[index];
+            }
+            const hue = Math.round((index * 137.508) % 360);
+            return `hsl(${hue} 82% 66%)`;
+        }
+
+        function pitchForIndex(index, usedPitches = new Set()) {
+            for (let i = 0; i < PITCHES.length; i++) {
+                const pitch = PITCHES[(index + i) % PITCHES.length];
+                if (!usedPitches.has(String(pitch))) {
+                    return pitch;
+                }
+            }
+
+            let pitch = Math.round((330 + ((index * 73) % 840)) * 100) / 100;
+            while (usedPitches.has(String(pitch))) {
+                pitch = Math.round((pitch + 7.13) * 100) / 100;
+                if (pitch > 1400) {
+                    pitch = Math.round((260 + ((pitch - 1400) % 120)) * 100) / 100;
+                }
+            }
+            return pitch;
+        }
+
+        function formatDuration(totalSeconds) {
+            const seconds = Math.round(totalSeconds);
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const remainingSeconds = seconds % 60;
+
+            if (hours > 0) {
+                return `${hours}h ${minutes}m ${remainingSeconds}s`;
+            }
+            if (minutes > 0) {
+                return `${minutes}m ${remainingSeconds}s`;
+            }
+            return `${remainingSeconds}s`;
+        }
+
+        function formatRemaining(totalMs) {
+            const totalSeconds = Math.max(0, Math.ceil(totalMs / 1000));
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            if (hours > 0) {
+                return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+            }
+            return `${minutes}:${String(seconds).padStart(2, "0")}`;
+        }
+
+        function setStatus(message, type = "") {
+            clearTimeout(statusTimeout);
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`.trim();
+            if (message) {
+                statusTimeout = setTimeout(() => {
+                    statusEl.textContent = "";
+                    statusEl.className = "status";
+                }, 3500);
+            }
+        }
+
+        function getDurationSecondsFromForm() {
+            const rawValue = Number(durationValueInput.value);
+            if (!Number.isFinite(rawValue) || rawValue <= 0) {
+                return null;
+            }
+
+            const multipliers = {
+                seconds: 1,
+                minutes: 60,
+                hours: 3600
+            };
+            return clamp(Math.round(rawValue * multipliers[durationUnitInput.value]), 1, MAX_DURATION_SECONDS);
+        }
+
+        function createTimer(config) {
+            const now = performance.now();
+            return {
+                id: config.id || createId(),
+                label: config.label || `Timer ${timers.length + 1}`,
+                durationSeconds: config.durationSeconds,
+                color: config.color,
+                pitchHz: config.pitchHz,
+                startedAt: now,
+                lastCycle: 0
+            };
+        }
+
+        function addTimer(label, durationSeconds) {
+            if (timers.length >= MAX_TIMERS) {
+                setStatus(`You can keep up to ${MAX_TIMERS} timers on one page.`, "err");
+                return;
+            }
+
+            const usedPitches = new Set(timers.map(timer => String(timer.pitchHz)));
+            const index = timers.length;
+            timers.push(createTimer({
+                label: label || `Timer ${index + 1}`,
+                durationSeconds,
+                color: colorForIndex(index),
+                pitchHz: pitchForIndex(index, usedPitches)
+            }));
+            renderTimers();
+            setStatus("Timer added. Press Save URL when you want to bookmark this setup.", "ok");
+        }
+
+        function resetTimer(id) {
+            const timer = timers.find(item => item.id === id);
+            if (!timer) {
+                return;
+            }
+            timer.startedAt = performance.now();
+            timer.lastCycle = 0;
+            setStatus(`${timer.label} restarted.`, "ok");
+        }
+
+        function removeTimer(id) {
+            const timer = timers.find(item => item.id === id);
+            timers = timers.filter(item => item.id !== id);
+            renderTimers();
+            if (timer) {
+                setStatus(`${timer.label} removed. Press Save URL to update the bookmarkable config.`, "ok");
+            }
+        }
+
+        function renderTimers() {
+            timerGrid.innerHTML = "";
+            emptyState.classList.toggle("hidden", timers.length > 0);
+
+            for (const timer of timers) {
+                const card = document.createElement("article");
+                card.className = "timer-card panel";
+                card.dataset.timerId = timer.id;
+                card.style.setProperty("--timer-color", timer.color);
+                card.innerHTML = `
+                    <div class="timer-content">
+                        <div class="timer-top">
+                            <div>
+                                <h2 class="timer-name"></h2>
+                                <div class="timer-duration"></div>
+                            </div>
+                            <span class="color-dot" aria-hidden="true"></span>
+                        </div>
+                        <div class="timer-body">
+                            <div class="progress-wrap">
+                                <div class="progress-pie" aria-hidden="true"></div>
+                                <div class="time-readout"></div>
+                            </div>
+                            <div>
+                                <div class="timer-meta">
+                                    Repeats automatically with a stable <span class="pitch"></span> chime.
+                                </div>
+                                <div class="timer-actions">
+                                    <button class="secondary" type="button" data-action="reset">Reset</button>
+                                    <button class="danger" type="button" data-action="remove">Remove</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                card.querySelector(".timer-name").textContent = timer.label;
+                card.querySelector(".timer-duration").textContent = `Every ${formatDuration(timer.durationSeconds)}`;
+                card.querySelector(".pitch").textContent = `${Math.round(timer.pitchHz)} Hz`;
+                card.querySelector('[data-action="reset"]').addEventListener("click", () => resetTimer(timer.id));
+                card.querySelector('[data-action="remove"]').addEventListener("click", () => removeTimer(timer.id));
+                timerGrid.appendChild(card);
+            }
+        }
+
+        function encodeBase64Url(value) {
+            const bytes = textEncoder.encode(value);
+            let binary = "";
+            for (const byte of bytes) {
+                binary += String.fromCharCode(byte);
+            }
+            return btoa(binary).replace(/=+$/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+        }
+
+        function decodeBase64Url(value) {
+            const normalized = (value || "").replace(/-/g, "+").replace(/_/g, "/");
+            const padded = normalized + "=".repeat((4 - normalized.length % 4) % 4);
+            const binary = atob(padded);
+            const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+            return textDecoder.decode(bytes);
+        }
+
+        function getConfig() {
+            return {
+                version: CONFIG_VERSION,
+                timers: timers.map(timer => ({
+                    id: timer.id,
+                    label: timer.label,
+                    durationSeconds: timer.durationSeconds,
+                    color: timer.color,
+                    pitchHz: timer.pitchHz
+                }))
+            };
+        }
+
+        function saveConfigToUrl() {
+            const encoded = encodeBase64Url(JSON.stringify(getConfig()));
+            const url = new URL(window.location.href);
+            url.searchParams.set(CONFIG_PARAM, encoded);
+            window.history.replaceState({}, "", url);
+            setStatus("Saved this timer setup into the URL.", "ok");
+        }
+
+        function isValidColor(value) {
+            return typeof value === "string" && (/^#[0-9a-fA-F]{6}$/.test(value) || /^hsl\(\d{1,3} 82% 66%\)$/.test(value));
+        }
+
+        function normalizeTimerConfig(rawTimer, index, usedPitches) {
+            if (!rawTimer || typeof rawTimer !== "object") {
+                return null;
+            }
+
+            const durationSeconds = Math.round(Number(rawTimer.durationSeconds));
+            if (!Number.isFinite(durationSeconds) || durationSeconds < 1) {
+                return null;
+            }
+
+            const rawPitch = Number(rawTimer.pitchHz);
+            const hasUsablePitch = Number.isFinite(rawPitch) && rawPitch >= 180 && rawPitch <= 1400 && !usedPitches.has(String(rawPitch));
+            const pitchHz = hasUsablePitch ? Math.round(rawPitch * 100) / 100 : pitchForIndex(index, usedPitches);
+            usedPitches.add(String(pitchHz));
+
+            const label = typeof rawTimer.label === "string" && rawTimer.label.trim()
+                ? rawTimer.label.trim().slice(0, 42)
+                : `Timer ${index + 1}`;
+
+            return {
+                id: typeof rawTimer.id === "string" && rawTimer.id ? rawTimer.id : createId(),
+                label,
+                durationSeconds: clamp(durationSeconds, 1, MAX_DURATION_SECONDS),
+                color: isValidColor(rawTimer.color) ? rawTimer.color : colorForIndex(index),
+                pitchHz
+            };
+        }
+
+        function loadConfigFromUrl() {
+            try {
+                const url = new URL(window.location.href);
+                const encoded = url.searchParams.get(CONFIG_PARAM);
+                if (!encoded) {
+                    return false;
+                }
+
+                const parsed = JSON.parse(decodeBase64Url(encoded));
+                if (!parsed || !Array.isArray(parsed.timers)) {
+                    return false;
+                }
+
+                const usedPitches = new Set();
+                const normalizedTimers = parsed.timers
+                    .slice(0, MAX_TIMERS)
+                    .map((timer, index) => normalizeTimerConfig(timer, index, usedPitches))
+                    .filter(Boolean);
+
+                if (normalizedTimers.length === 0) {
+                    return false;
+                }
+
+                timers = normalizedTimers.map(timer => createTimer(timer));
+                return true;
+            } catch (error) {
+                console.warn("Could not load interval timer config from URL:", error);
+                return false;
+            }
+        }
+
+        function ensureAudioContext() {
+            if (!audioContext) {
+                const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextCtor) {
+                    setStatus("This browser does not support Web Audio chimes.", "err");
+                    return null;
+                }
+                audioContext = new AudioContextCtor();
+            }
+            if (audioContext.state === "suspended") {
+                const resumePromise = audioContext.resume();
+                if (resumePromise && typeof resumePromise.catch === "function") {
+                    resumePromise.catch(() => {
+                        setStatus("Click or tap once to enable timer chimes.", "err");
+                    });
+                }
+            }
+            return audioContext;
+        }
+
+        function playChime(pitchHz) {
+            const context = ensureAudioContext();
+            if (!context) {
+                return;
+            }
+            if (context.state === "suspended") {
+                setStatus("Click or tap once to enable timer chimes.", "err");
+                return;
+            }
+
+            const now = context.currentTime;
+            const master = context.createGain();
+            master.gain.setValueAtTime(0.0001, now);
+            master.gain.exponentialRampToValueAtTime(0.16, now + 0.025);
+            master.gain.exponentialRampToValueAtTime(0.0001, now + 1.15);
+            master.connect(context.destination);
+
+            [
+                { frequency: pitchHz, gain: 0.9 },
+                { frequency: pitchHz * 2, gain: 0.18 }
+            ].forEach(partial => {
+                const oscillator = context.createOscillator();
+                const gain = context.createGain();
+                oscillator.type = "sine";
+                oscillator.frequency.setValueAtTime(partial.frequency, now);
+                gain.gain.setValueAtTime(partial.gain, now);
+                oscillator.connect(gain);
+                gain.connect(master);
+                oscillator.start(now);
+                oscillator.stop(now + 1.2);
+            });
+        }
+
+        function getTimerCard(id) {
+            return Array.from(timerGrid.children).find(card => card.dataset.timerId === id);
+        }
+
+        function markChiming(timer) {
+            const card = getTimerCard(timer.id);
+            if (!card) {
+                return;
+            }
+            card.classList.remove("chiming");
+            void card.offsetWidth;
+            card.classList.add("chiming");
+        }
+
+        function updateTimerDisplay(timer, now) {
+            const card = getTimerCard(timer.id);
+            if (!card) {
+                return;
+            }
+
+            const durationMs = timer.durationSeconds * 1000;
+            const elapsedMs = Math.max(0, now - timer.startedAt);
+            const cycle = Math.floor(elapsedMs / durationMs);
+            const cycleElapsedMs = elapsedMs % durationMs;
+
+            if (cycle > timer.lastCycle) {
+                timer.lastCycle = cycle;
+                playChime(timer.pitchHz);
+                markChiming(timer);
+            }
+
+            const remainingMs = durationMs - cycleElapsedMs;
+            const remainingRatio = clamp(remainingMs / durationMs, 0, 1);
+            card.querySelector(".progress-pie").style.setProperty("--progress", `${remainingRatio * 100}%`);
+            card.querySelector(".time-readout").textContent = formatRemaining(remainingMs);
+        }
+
+        function tick(now) {
+            for (const timer of timers) {
+                updateTimerDisplay(timer, now);
+            }
+            requestAnimationFrame(tick);
+        }
+
+        timerForm.addEventListener("submit", event => {
+            event.preventDefault();
+            ensureAudioContext();
+
+            const durationSeconds = getDurationSecondsFromForm();
+            if (!durationSeconds) {
+                setStatus("Enter a positive duration before adding a timer.", "err");
+                return;
+            }
+
+            addTimer(timerLabelInput.value.trim(), durationSeconds);
+            timerLabelInput.value = "";
+            timerLabelInput.focus();
+        });
+
+        saveBtn.addEventListener("click", () => {
+            ensureAudioContext();
+            saveConfigToUrl();
+        });
+
+        document.addEventListener("pointerdown", () => {
+            ensureAudioContext();
+        }, { once: true });
+
+        loadConfigFromUrl();
+
+        renderTimers();
+        requestAnimationFrame(tick);
+    </script>
+</body>
+</html>
