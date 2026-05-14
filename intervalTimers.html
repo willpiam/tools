@@ -154,7 +154,7 @@
 
         .timer-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
             gap: 18px;
         }
 
@@ -222,14 +222,23 @@
 
         .timer-body {
             display: grid;
-            grid-template-columns: 132px 1fr;
+            --timer-size: clamp(112px, 16vw, 144px);
+            grid-template-columns: var(--timer-size) minmax(0, 1fr);
             gap: 18px;
             align-items: center;
         }
 
+        .progress-wrap {
+            position: relative;
+            width: var(--timer-size);
+            aspect-ratio: 1;
+            display: grid;
+            place-items: center;
+        }
+
         .progress-pie {
             --progress: 100%;
-            width: 132px;
+            width: 100%;
             aspect-ratio: 1;
             border-radius: 50%;
             display: grid;
@@ -249,7 +258,10 @@
 
         .time-readout {
             position: absolute;
-            width: 132px;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            width: 100%;
             text-align: center;
             font-variant-numeric: tabular-nums;
             font-size: 22px;
@@ -310,6 +322,7 @@
             }
 
             .timer-body {
+                --timer-size: min(62vw, 156px);
                 grid-template-columns: 1fr;
                 justify-items: center;
                 text-align: center;
