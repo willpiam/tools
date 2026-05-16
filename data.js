@@ -81,5 +81,11 @@ const tools = [
 `,
         mode: "external", // indicates that this tool is hosted elsewhere... a url field is provided in place of a path field
         url: "https://cardano-tools-delta.vercel.app/commit"
+    },
+    {
+        title: "Cardano Treasury Donation Tool",
+        description: "Donate directly to the Cardano Treasury with a simple form. Please note; you will need a blockfrost api key to use this tool.",
+        mode: "external",
+        url: "https://cardano-tools-delta.vercel.app/donate-treasury"
     }
 ];
