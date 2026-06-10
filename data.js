@@ -87,5 +87,17 @@ const tools = [
         description: "Donate directly to the Cardano Treasury with a simple form. Please note; you will need a blockfrost api key to use this tool.",
         mode: "external",
         url: "https://cardano-tools-delta.vercel.app/donate-treasury"
+    },
+    {
+        title: "Cardano dRep History Dashboard",
+        description: "View the history of a Cardano dRep. You must supply a blockfrost api key.",
+        mode: "external",
+        url: "https://cardano-tools-delta.vercel.app/drep-history"
+    },
+    {
+        title: "Cardano Voting Interface",
+        description: "Cast votes on Cardano proposals. You will need a blockfrost api key. A pinata api key is required for including metadata with your vote. ",
+        mode: "external",
+        url: "https://cardano-tools-delta.vercel.app/drep-vote"
     }
 ];
