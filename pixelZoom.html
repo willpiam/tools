@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Zoom</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        html, body {
+            margin: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        }
+        button {
+            background-color: #2563eb;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button.secondary {
+            background-color: #4b5563;
+        }
+        button:hover {
+            filter: brightness(1.08);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #upload {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100%;
+            padding: 24px;
+            gap: 16px;
+        }
+        #upload.hidden,
+        #viewer.hidden {
+            display: none;
+        }
+        h1 {
+            margin: 0 0 8px;
+            color: #60a5fa;
+            font-size: 28px;
+        }
+        .hint {
+            color: #9ca3af;
+            font-size: 14px;
+            text-align: center;
+            max-width: 420px;
+            line-height: 1.5;
+        }
+        .dropzone {
+            width: min(480px, 100%);
+            border: 2px dashed #4b5563;
+            border-radius: 10px;
+            background-color: #2d2d2d;
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.15s, background-color 0.15s;
+        }
+        .dropzone:hover,
+        .dropzone.dragover {
+            border-color: #60a5fa;
+            background-color: #363636;
+        }
+        .dropzone p {
+            margin: 0 0 12px;
+            color: #d1d5db;
+        }
+        .dropzone .sub {
+            color: #9ca3af;
+            font-size: 13px;
+        }
+        #fileInput {
+            display: none;
+        }
+        .status {
+            min-height: 1.2em;
+            font-size: 14px;
+            color: #fca5a5;
+        }
+
+        #viewer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            touch-action: none;
+            user-select: none;
+        }
+        .stage {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            cursor: grab;
+        }
+        .stage.dragging {
+            cursor: grabbing;
+        }
+        .stage img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            max-width: none;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            pointer-events: none;
+            -webkit-user-drag: none;
+        }
+        .toolbar {
+            position: absolute;
+            left: 50%;
+            bottom: 16px;
+            transform: translateX(-50%);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 12px;
+            background: rgba(45, 45, 45, 0.92);
+            border: 1px solid #374151;
+            border-radius: 10px;
+            z-index: 2;
+            max-width: calc(100% - 24px);
+        }
+        .zoom-label {
+            min-width: 64px;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            font-size: 14px;
+            color: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <section id="upload">
+        <h1>Pixel Zoom</h1>
+        <p class="hint">Upload an image, then zoom with sharp, unblurred pixels. Scroll or use +/− to zoom; drag to pan.</p>
+        <label class="dropzone" id="dropzone" for="fileInput">
+            <p>Drop an image here</p>
+            <p class="sub">or click to choose a file</p>
+        </label>
+        <input type="file" id="fileInput" accept="image/*">
+        <div class="status" id="uploadStatus" aria-live="polite"></div>
+    </section>
+
+    <section id="viewer" class="hidden" aria-label="Image viewer">
+        <div class="stage" id="stage">
+            <img id="image" alt="Uploaded image">
+        </div>
+        <div class="toolbar">
+            <button type="button" class="secondary" id="zoomOut" title="Zoom out">−</button>
+            <span class="zoom-label" id="zoomLabel">100%</span>
+            <button type="button" class="secondary" id="zoomIn" title="Zoom in">+</button>
+            <button type="button" class="secondary" id="resetView">Reset</button>
+            <button type="button" class="secondary" id="toggleFullscreen">Fullscreen</button>
+            <button type="button" id="newImage">New image</button>
+        </div>
+    </section>
+
+    <script>
+        const MIN_SCALE = 0.1;
+        const MAX_SCALE = 64;
+        const BUTTON_ZOOM_FACTOR = 1.25;
+
+        const uploadEl = document.getElementById("upload");
+        const viewerEl = document.getElementById("viewer");
+        const dropzone = document.getElementById("dropzone");
+        const fileInput = document.getElementById("fileInput");
+        const uploadStatus = document.getElementById("uploadStatus");
+        const stage = document.getElementById("stage");
+        const image = document.getElementById("image");
+        const zoomLabel = document.getElementById("zoomLabel");
+        const zoomInBtn = document.getElementById("zoomIn");
+        const zoomOutBtn = document.getElementById("zoomOut");
+        const resetViewBtn = document.getElementById("resetView");
+        const toggleFullscreenBtn = document.getElementById("toggleFullscreen");
+        const newImageBtn = document.getElementById("newImage");
+
+        let objectUrl = null;
+        let naturalW = 0;
+        let naturalH = 0;
+        let scale = 1;
+        let tx = 0;
+        let ty = 0;
+        let dragging = false;
+        let lastX = 0;
+        let lastY = 0;
+        let pinchStartDist = 0;
+        let pinchStartScale = 1;
+        let pinchMidX = 0;
+        let pinchMidY = 0;
+
+        function revokeObjectUrl() {
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+                objectUrl = null;
+            }
+        }
+
+        function applyTransform() {
+            image.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+            zoomLabel.textContent = `${Math.round(scale * 100)}%`;
+        }
+
+        function fitToScreen() {
+            const vw = stage.clientWidth;
+            const vh = stage.clientHeight;
+            if (!naturalW || !naturalH || !vw || !vh) return;
+            const fit = Math.min(vw / naturalW, vh / naturalH);
+            scale = Math.min(Math.max(fit, MIN_SCALE), MAX_SCALE);
+            tx = (vw - naturalW * scale) / 2;
+            ty = (vh - naturalH * scale) / 2;
+            applyTransform();
+        }
+
+        function clampScale(next) {
+            return Math.min(MAX_SCALE, Math.max(MIN_SCALE, next));
+        }
+
+        function zoomAt(clientX, clientY, nextScale) {
+            const rect = stage.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+            const worldX = (x - tx) / scale;
+            const worldY = (y - ty) / scale;
+            scale = clampScale(nextScale);
+            tx = x - worldX * scale;
+            ty = y - worldY * scale;
+            applyTransform();
+        }
+
+        function showViewer() {
+            uploadEl.classList.add("hidden");
+            viewerEl.classList.remove("hidden");
+            requestAnimationFrame(fitToScreen);
+        }
+
+        function showUpload() {
+            viewerEl.classList.add("hidden");
+            uploadEl.classList.remove("hidden");
+            fileInput.value = "";
+            uploadStatus.textContent = "";
+            image.removeAttribute("src");
+            revokeObjectUrl();
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+
+        function loadFile(file) {
+            if (!file || !file.type.startsWith("image/")) {
+                uploadStatus.textContent = "Please choose an image file.";
+                return;
+            }
+            uploadStatus.textContent = "";
+            revokeObjectUrl();
+            objectUrl = URL.createObjectURL(file);
+            image.onload = () => {
+                naturalW = image.naturalWidth;
+                naturalH = image.naturalHeight;
+                showViewer();
+            };
+            image.onerror = () => {
+                uploadStatus.textContent = "Could not load that image.";
+                revokeObjectUrl();
+            };
+            image.src = objectUrl;
+        }
+
+        fileInput.addEventListener("change", () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (file) loadFile(file);
+        });
+
+        ["dragenter", "dragover"].forEach((type) => {
+            dropzone.addEventListener(type, (e) => {
+                e.preventDefault();
+                dropzone.classList.add("dragover");
+            });
+        });
+        ["dragleave", "drop"].forEach((type) => {
+            dropzone.addEventListener(type, (e) => {
+                e.preventDefault();
+                dropzone.classList.remove("dragover");
+            });
+        });
+        dropzone.addEventListener("drop", (e) => {
+            const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file) loadFile(file);
+        });
+
+        stage.addEventListener("wheel", (e) => {
+            e.preventDefault();
+            const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+            zoomAt(e.clientX, e.clientY, scale * factor);
+        }, { passive: false });
+
+        stage.addEventListener("pointerdown", (e) => {
+            if (e.pointerType === "touch" && e.isPrimary === false) return;
+            dragging = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            stage.classList.add("dragging");
+            stage.setPointerCapture(e.pointerId);
+        });
+
+        stage.addEventListener("pointermove", (e) => {
+            if (!dragging) return;
+            const dx = e.clientX - lastX;
+            const dy = e.clientY - lastY;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            tx += dx;
+            ty += dy;
+            applyTransform();
+        });
+
+        function endDrag(e) {
+            if (!dragging) return;
+            dragging = false;
+            stage.classList.remove("dragging");
+            if (stage.hasPointerCapture(e.pointerId)) {
+                stage.releasePointerCapture(e.pointerId);
+            }
+        }
+        stage.addEventListener("pointerup", endDrag);
+        stage.addEventListener("pointercancel", endDrag);
+
+        stage.addEventListener("touchstart", (e) => {
+            if (e.touches.length === 2) {
+                dragging = false;
+                const a = e.touches[0];
+                const b = e.touches[1];
+                pinchStartDist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+                pinchStartScale = scale;
+                pinchMidX = (a.clientX + b.clientX) / 2;
+                pinchMidY = (a.clientY + b.clientY) / 2;
+            }
+        }, { passive: true });
+
+        stage.addEventListener("touchmove", (e) => {
+            if (e.touches.length === 2 && pinchStartDist > 0) {
+                e.preventDefault();
+                const a = e.touches[0];
+                const b = e.touches[1];
+                const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+                const midX = (a.clientX + b.clientX) / 2;
+                const midY = (a.clientY + b.clientY) / 2;
+                zoomAt(midX, midY, pinchStartScale * (dist / pinchStartDist));
+                const dx = midX - pinchMidX;
+                const dy = midY - pinchMidY;
+                pinchMidX = midX;
+                pinchMidY = midY;
+                tx += dx;
+                ty += dy;
+                applyTransform();
+            }
+        }, { passive: false });
+
+        stage.addEventListener("touchend", (e) => {
+            if (e.touches.length < 2) pinchStartDist = 0;
+        });
+
+        zoomInBtn.addEventListener("click", () => {
+            const rect = stage.getBoundingClientRect();
+            zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, scale * BUTTON_ZOOM_FACTOR);
+        });
+        zoomOutBtn.addEventListener("click", () => {
+            const rect = stage.getBoundingClientRect();
+            zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, scale / BUTTON_ZOOM_FACTOR);
+        });
+        resetViewBtn.addEventListener("click", fitToScreen);
+        newImageBtn.addEventListener("click", showUpload);
+
+        toggleFullscreenBtn.addEventListener("click", async () => {
+            try {
+                if (!document.fullscreenElement) {
+                    await viewerEl.requestFullscreen();
+                } else {
+                    await document.exitFullscreen();
+                }
+            } catch (_) {
+                /* Fullscreen may be blocked by the browser. */
+            }
+        });
+
+        document.addEventListener("fullscreenchange", () => {
+            toggleFullscreenBtn.textContent = document.fullscreenElement ? "Exit full" : "Fullscreen";
+            requestAnimationFrame(fitToScreen);
+        });
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key !== "Escape") return;
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+                return;
+            }
+            if (!viewerEl.classList.contains("hidden")) {
+                showUpload();
+            }
+        });
+
+        window.addEventListener("beforeunload", revokeObjectUrl);
+    </script>
+</body>
+</html>

@@ -99,5 +99,10 @@ const tools = [
         description: "Cast votes on Cardano proposals. You will need a blockfrost api key. A pinata api key is required for including metadata with your vote. ",
         mode: "external",
         url: "https://cardano-tools-delta.vercel.app/drep-vote"
+    },
+    {
+        title: "Pixel Zoom",
+        description: "Upload an image and zoom in with sharp, unblurred pixels",
+        path: "pixelZoom.html"
     }
 ];
