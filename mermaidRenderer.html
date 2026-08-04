@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mermaid Diagram Renderer</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+        h1 {
+            margin: 0 0 16px;
+            color: #60a5fa;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .controls label {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            user-select: none;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-auto-rows: minmax(200px, auto);
+            gap: 16px;
+        }
+        @media (min-width: 900px) {
+            .container {
+                grid-template-columns: 1fr 1fr;
+                grid-auto-rows: minmax(400px, auto);
+                height: calc(100vh - 120px);
+            }
+        }
+        .panel {
+            background-color: #2d2d2d;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-header {
+            padding: 10px 12px;
+            background-color: #242424;
+            border-bottom: 1px solid #3a3a3a;
+            color: #9ca3af;
+            font-size: 14px;
+        }
+        textarea {
+            flex: 1;
+            width: 100%;
+            box-sizing: border-box;
+            background-color: #1f1f1f;
+            color: #e0e0e0;
+            border: none;
+            padding: 12px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            line-height: 1.4;
+        }
+        #preview {
+            flex: 1;
+            overflow: auto;
+            padding: 16px;
+            background-color: #1f1f1f;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+        #preview svg {
+            max-width: 100%;
+            height: auto;
+        }
+        button {
+            background-color: #3b82f6;
+            color: #ffffff;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #2563eb;
+        }
+        button.secondary {
+            background-color: #4b5563;
+        }
+        button.secondary:hover {
+            background-color: #374151;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status {
+            color: #9ca3af;
+            font-size: 12px;
+            max-width: 420px;
+        }
+        .status.error {
+            color: #f87171;
+        }
+        .spacer {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mermaid Diagram Renderer</h1>
+    <div class="controls">
+        <button id="renderBtn" title="Render the Mermaid source into the preview">Render</button>
+        <label title="Update preview as you type">
+            <input type="checkbox" id="livePreview" checked>
+            Live preview
+        </label>
+        <button id="downloadBtn" class="secondary" title="Download the rendered SVG" disabled>Download SVG</button>
+        <button id="copyBtn" class="secondary" title="Copy the rendered SVG to the clipboard" disabled>Copy SVG</button>
+        <div class="spacer"></div>
+        <span id="status" class="status">Paste Mermaid syntax below. Markdown fences are stripped automatically.</span>
+    </div>
+    <div class="container">
+        <div class="panel">
+            <div class="panel-header">Mermaid Source</div>
+            <textarea id="sourceInput" spellcheck="false">flowchart TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Do the thing]
+    B -->|No| D[Skip]
+    C --> E[End]
+    D --> E</textarea>
+        </div>
+        <div class="panel">
+            <div class="panel-header">Preview</div>
+            <div id="preview" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const inputEl = document.getElementById('sourceInput');
+            const previewEl = document.getElementById('preview');
+            const renderBtn = document.getElementById('renderBtn');
+            const livePreviewEl = document.getElementById('livePreview');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const copyBtn = document.getElementById('copyBtn');
+            const statusEl = document.getElementById('status');
+
+            let debounceTimer = null;
+            let renderSeq = 0;
+            let lastSvg = '';
+            let hasSuccessfulRender = false;
+
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: 'dark',
+                securityLevel: 'strict'
+            });
+
+            function setStatus(message, isError) {
+                statusEl.textContent = message;
+                statusEl.classList.toggle('error', Boolean(isError));
+            }
+
+            function setExportEnabled(enabled) {
+                downloadBtn.disabled = !enabled;
+                copyBtn.disabled = !enabled;
+            }
+
+            function stripFences(raw) {
+                let text = String(raw || '').trim();
+                const fenced = /^```(?:mermaid)?\s*\n([\s\S]*?)\n```$/i.exec(text);
+                if (fenced) {
+                    return fenced[1].trim();
+                }
+                if (text.startsWith('```')) {
+                    text = text.replace(/^```(?:mermaid)?\s*\n?/i, '').replace(/\n?```$/i, '');
+                }
+                return text.trim();
+            }
+
+            async function render() {
+                const source = stripFences(inputEl.value);
+                if (!source) {
+                    setStatus('Enter Mermaid syntax to render a diagram.', true);
+                    if (!hasSuccessfulRender) {
+                        previewEl.innerHTML = '';
+                        lastSvg = '';
+                        setExportEnabled(false);
+                    }
+                    return;
+                }
+
+                const id = 'mermaid-diagram-' + (++renderSeq);
+                try {
+                    const result = await mermaid.render(id, source);
+                    previewEl.innerHTML = result.svg;
+                    lastSvg = result.svg;
+                    hasSuccessfulRender = true;
+                    setExportEnabled(true);
+                    setStatus('Diagram rendered.');
+                } catch (err) {
+                    const message = (err && err.message) ? err.message : String(err);
+                    setStatus(message, true);
+                    if (!hasSuccessfulRender) {
+                        previewEl.innerHTML = '';
+                        lastSvg = '';
+                        setExportEnabled(false);
+                    }
+                }
+            }
+
+            function scheduleRender() {
+                if (!livePreviewEl.checked) return;
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function () {
+                    render();
+                }, 250);
+            }
+
+            function downloadSvg() {
+                if (!lastSvg) return;
+                const blob = new Blob([lastSvg], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'diagram.svg';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            }
+
+            async function copySvg() {
+                if (!lastSvg) return;
+                try {
+                    await navigator.clipboard.writeText(lastSvg);
+                    setStatus('SVG copied to clipboard.');
+                } catch (err) {
+                    setStatus('Could not copy SVG to clipboard.', true);
+                }
+            }
+
+            inputEl.addEventListener('input', scheduleRender);
+            renderBtn.addEventListener('click', function () {
+                clearTimeout(debounceTimer);
+                render();
+            });
+            livePreviewEl.addEventListener('change', function () {
+                if (livePreviewEl.checked) {
+                    render();
+                }
+            });
+            downloadBtn.addEventListener('click', downloadSvg);
+            copyBtn.addEventListener('click', copySvg);
+
+            render();
+        })();
+    </script>
+</body>
+</html>

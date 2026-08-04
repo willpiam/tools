@@ -104,5 +104,10 @@ const tools = [
         title: "Pixel Zoom",
         description: "Upload an image and zoom in with sharp, unblurred pixels",
         path: "pixelZoom.html"
+    },
+    {
+        title: "Mermaid Diagram Renderer",
+        description: "Paste Mermaid syntax and view the rendered diagram; download or copy the SVG",
+        path: "mermaidRenderer.html"
     }
 ];
