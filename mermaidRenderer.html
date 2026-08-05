@@ -30,6 +30,11 @@
             align-items: center;
             user-select: none;
         }
+        .controls .field-label {
+            color: #9ca3af;
+            font-size: 13px;
+            user-select: none;
+        }
         .container {
             display: grid;
             grid-template-columns: 1fr;
@@ -40,7 +45,7 @@
             .container {
                 grid-template-columns: 1fr 1fr;
                 grid-auto-rows: minmax(400px, auto);
-                height: calc(100vh - 120px);
+                height: calc(100vh - 170px);
             }
         }
         .panel {
@@ -103,9 +108,37 @@
         button.secondary:hover {
             background-color: #374151;
         }
+        button.danger {
+            background-color: #7f1d1d;
+        }
+        button.danger:hover {
+            background-color: #991b1b;
+        }
         button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+        }
+        select,
+        input[type="text"] {
+            background-color: #1f1f1f;
+            color: #e0e0e0;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            padding: 7px 10px;
+            font-size: 14px;
+            outline: none;
+        }
+        select:focus,
+        input[type="text"]:focus {
+            border-color: #3b82f6;
+        }
+        #diagramSelect {
+            min-width: 160px;
+            max-width: 240px;
+        }
+        #nameInput {
+            min-width: 140px;
+            max-width: 220px;
         }
         .status {
             color: #9ca3af;
@@ -133,15 +166,20 @@
         <div class="spacer"></div>
         <span id="status" class="status">Paste Mermaid syntax below. Markdown fences are stripped automatically.</span>
     </div>
+    <div class="controls" id="libraryControls">
+        <label class="field-label" for="diagramSelect">Diagram</label>
+        <select id="diagramSelect" title="Select a saved diagram" aria-label="Saved diagrams"></select>
+        <label class="field-label" for="nameInput">Name</label>
+        <input type="text" id="nameInput" placeholder="Untitled" title="Diagram name" aria-label="Diagram name">
+        <button id="saveBtn" title="Save this diagram to local browser storage">Save</button>
+        <button id="cloneBtn" class="secondary" title="Duplicate this diagram under a new name">Clone</button>
+        <button id="deleteBtn" class="danger" title="Delete the selected saved diagram" disabled>Delete</button>
+        <button id="downloadMdBtn" class="secondary" title="Download Mermaid source as a Markdown file">Download Markdown</button>
+    </div>
     <div class="container">
         <div class="panel">
             <div class="panel-header">Mermaid Source</div>
-            <textarea id="sourceInput" spellcheck="false">flowchart TD
-    A[Start] --> B{Decision}
-    B -->|Yes| C[Do the thing]
-    B -->|No| D[Skip]
-    C --> E[End]
-    D --> E</textarea>
+            <textarea id="sourceInput" spellcheck="false"></textarea>
         </div>
         <div class="panel">
             <div class="panel-header">Preview</div>
@@ -151,6 +189,16 @@
 
     <script>
         (function () {
+            const STORAGE_KEY = 'mermaidRenderer.diagrams';
+            const SAMPLE_SOURCE = [
+                'flowchart TD',
+                '    A[Start] --> B{Decision}',
+                '    B -->|Yes| C[Do the thing]',
+                '    B -->|No| D[Skip]',
+                '    C --> E[End]',
+                '    D --> E'
+            ].join('\n');
+
             const inputEl = document.getElementById('sourceInput');
             const previewEl = document.getElementById('preview');
             const renderBtn = document.getElementById('renderBtn');
@@ -158,17 +206,102 @@
             const downloadBtn = document.getElementById('downloadBtn');
             const copyBtn = document.getElementById('copyBtn');
             const statusEl = document.getElementById('status');
+            const diagramSelect = document.getElementById('diagramSelect');
+            const nameInput = document.getElementById('nameInput');
+            const saveBtn = document.getElementById('saveBtn');
+            const cloneBtn = document.getElementById('cloneBtn');
+            const deleteBtn = document.getElementById('deleteBtn');
+            const downloadMdBtn = document.getElementById('downloadMdBtn');
 
             let debounceTimer = null;
             let renderSeq = 0;
             let lastSvg = '';
             let hasSuccessfulRender = false;
+            let store = emptyStore();
+            let lastLoadedSource = '';
+            let suppressSelectChange = false;
 
             mermaid.initialize({
                 startOnLoad: false,
                 theme: 'dark',
                 securityLevel: 'strict'
             });
+
+            function emptyStore() {
+                return { version: 1, activeId: null, diagrams: [] };
+            }
+
+            function newId() {
+                if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+                    return crypto.randomUUID();
+                }
+                return String(Date.now()) + '-' + Math.random().toString(36).slice(2, 10);
+            }
+
+            function loadStore() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if (!raw) return emptyStore();
+                    const parsed = JSON.parse(raw);
+                    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.diagrams)) {
+                        return emptyStore();
+                    }
+                    const diagrams = parsed.diagrams
+                        .filter(function (d) {
+                            return d && typeof d.id === 'string' && typeof d.name === 'string' && typeof d.source === 'string';
+                        })
+                        .map(function (d) {
+                            return {
+                                id: d.id,
+                                name: d.name,
+                                source: d.source,
+                                updatedAt: typeof d.updatedAt === 'number' ? d.updatedAt : Date.now()
+                            };
+                        });
+                    const activeId = typeof parsed.activeId === 'string' ? parsed.activeId : null;
+                    const activeExists = activeId && diagrams.some(function (d) { return d.id === activeId; });
+                    return {
+                        version: 1,
+                        activeId: activeExists ? activeId : null,
+                        diagrams: diagrams
+                    };
+                } catch (err) {
+                    return emptyStore();
+                }
+            }
+
+            function persistStore() {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+            }
+
+            function normalizeName(name) {
+                return String(name || '').trim();
+            }
+
+            function nameKey(name) {
+                return normalizeName(name).toLowerCase();
+            }
+
+            function findById(id) {
+                if (!id) return null;
+                for (var i = 0; i < store.diagrams.length; i++) {
+                    if (store.diagrams[i].id === id) return store.diagrams[i];
+                }
+                return null;
+            }
+
+            function isNameTaken(name, exceptId) {
+                var key = nameKey(name);
+                return store.diagrams.some(function (d) {
+                    return d.id !== exceptId && nameKey(d.name) === key;
+                });
+            }
+
+            function sortedDiagrams() {
+                return store.diagrams.slice().sort(function (a, b) {
+                    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+                });
+            }
 
             function setStatus(message, isError) {
                 statusEl.textContent = message;
@@ -190,6 +323,234 @@
                     text = text.replace(/^```(?:mermaid)?\s*\n?/i, '').replace(/\n?```$/i, '');
                 }
                 return text.trim();
+            }
+
+            function currentSourceForSave() {
+                return stripFences(inputEl.value);
+            }
+
+            function isDirty() {
+                return inputEl.value !== lastLoadedSource;
+            }
+
+            function refreshSelect() {
+                suppressSelectChange = true;
+                diagramSelect.innerHTML = '';
+                var untitled = document.createElement('option');
+                untitled.value = '';
+                untitled.textContent = 'Untitled';
+                diagramSelect.appendChild(untitled);
+
+                sortedDiagrams().forEach(function (d) {
+                    var opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = d.name;
+                    diagramSelect.appendChild(opt);
+                });
+
+                diagramSelect.value = store.activeId || '';
+                suppressSelectChange = false;
+                deleteBtn.disabled = !store.activeId;
+            }
+
+            function applyDiagramToEditor(diagram) {
+                if (diagram) {
+                    store.activeId = diagram.id;
+                    nameInput.value = diagram.name;
+                    inputEl.value = diagram.source;
+                    lastLoadedSource = diagram.source;
+                } else {
+                    store.activeId = null;
+                    nameInput.value = '';
+                    inputEl.value = SAMPLE_SOURCE;
+                    lastLoadedSource = SAMPLE_SOURCE;
+                }
+                persistStore();
+                refreshSelect();
+                render();
+            }
+
+            function confirmDiscardIfDirty() {
+                if (!isDirty()) return true;
+                return window.confirm('You have unsaved changes. Discard them?');
+            }
+
+            function promptForName(defaultName, message) {
+                var result = window.prompt(message || 'Diagram name', defaultName || '');
+                if (result === null) return null;
+                var name = normalizeName(result);
+                if (!name) {
+                    setStatus('Name cannot be empty.', true);
+                    return null;
+                }
+                return name;
+            }
+
+            function saveDiagram() {
+                var source = currentSourceForSave();
+                if (!source) {
+                    setStatus('Enter Mermaid syntax before saving.', true);
+                    return;
+                }
+
+                var name = normalizeName(nameInput.value);
+                var active = findById(store.activeId);
+
+                if (!active) {
+                    if (!name) {
+                        name = promptForName('', 'Diagram name');
+                        if (!name) return;
+                    }
+                    if (isNameTaken(name, null)) {
+                        setStatus('A diagram named "' + name + '" already exists.', true);
+                        return;
+                    }
+                    var created = {
+                        id: newId(),
+                        name: name,
+                        source: source,
+                        updatedAt: Date.now()
+                    };
+                    store.diagrams.push(created);
+                    store.activeId = created.id;
+                    nameInput.value = name;
+                    lastLoadedSource = inputEl.value;
+                    persistStore();
+                    refreshSelect();
+                    setStatus('Saved "' + name + '".');
+                    return;
+                }
+
+                if (!name) {
+                    name = promptForName(active.name, 'Diagram name');
+                    if (!name) return;
+                }
+
+                if (isNameTaken(name, active.id)) {
+                    setStatus('A diagram named "' + name + '" already exists.', true);
+                    return;
+                }
+
+                active.name = name;
+                active.source = source;
+                active.updatedAt = Date.now();
+                nameInput.value = name;
+                lastLoadedSource = inputEl.value;
+                persistStore();
+                refreshSelect();
+                setStatus('Saved "' + name + '".');
+            }
+
+            function cloneDiagram() {
+                var source = currentSourceForSave();
+                if (!source) {
+                    setStatus('Enter Mermaid syntax before cloning.', true);
+                    return;
+                }
+
+                var baseName = normalizeName(nameInput.value) || 'Untitled';
+                var suggested = baseName + ' (copy)';
+                var name = promptForName(suggested, 'Name for the clone');
+                if (!name) return;
+                if (isNameTaken(name, null)) {
+                    setStatus('A diagram named "' + name + '" already exists.', true);
+                    return;
+                }
+
+                var cloned = {
+                    id: newId(),
+                    name: name,
+                    source: source,
+                    updatedAt: Date.now()
+                };
+                store.diagrams.push(cloned);
+                store.activeId = cloned.id;
+                nameInput.value = name;
+                inputEl.value = source;
+                lastLoadedSource = source;
+                persistStore();
+                refreshSelect();
+                setStatus('Cloned as "' + name + '".');
+                render();
+            }
+
+            function deleteDiagram() {
+                var active = findById(store.activeId);
+                if (!active) return;
+                if (!window.confirm('Delete "' + active.name + '"? This cannot be undone.')) {
+                    return;
+                }
+
+                store.diagrams = store.diagrams.filter(function (d) {
+                    return d.id !== active.id;
+                });
+
+                var remaining = sortedDiagrams();
+                if (remaining.length > 0) {
+                    applyDiagramToEditor(remaining[0]);
+                    setStatus('Deleted "' + active.name + '".');
+                } else {
+                    applyDiagramToEditor(null);
+                    setStatus('Deleted "' + active.name + '".');
+                }
+            }
+
+            function onSelectChange() {
+                if (suppressSelectChange) return;
+                var nextId = diagramSelect.value || null;
+                var currentId = store.activeId || null;
+                if (nextId === currentId) return;
+
+                if (!confirmDiscardIfDirty()) {
+                    suppressSelectChange = true;
+                    diagramSelect.value = store.activeId || '';
+                    suppressSelectChange = false;
+                    return;
+                }
+
+                if (!nextId) {
+                    applyDiagramToEditor(null);
+                    setStatus('Untitled draft.');
+                    return;
+                }
+
+                var diagram = findById(nextId);
+                if (!diagram) {
+                    applyDiagramToEditor(null);
+                    setStatus('Diagram not found.', true);
+                    return;
+                }
+                applyDiagramToEditor(diagram);
+                setStatus('Loaded "' + diagram.name + '".');
+            }
+
+            function sanitizeFilename(name) {
+                var cleaned = normalizeName(name)
+                    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+                    .replace(/\s+/g, '-')
+                    .replace(/-+/g, '-')
+                    .replace(/^\.+|\.+$/g, '');
+                return cleaned || 'diagram';
+            }
+
+            function downloadMarkdown() {
+                var source = currentSourceForSave();
+                if (!source) {
+                    setStatus('Enter Mermaid syntax before downloading Markdown.', true);
+                    return;
+                }
+                var body = '```mermaid\n' + source + '\n```\n';
+                var filename = sanitizeFilename(nameInput.value) + '.md';
+                var blob = new Blob([body], { type: 'text/markdown;charset=utf-8' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                setStatus('Downloaded ' + filename + '.');
             }
 
             async function render() {
@@ -237,7 +598,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'diagram.svg';
+                a.download = sanitizeFilename(nameInput.value) + '.svg';
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
@@ -266,7 +627,33 @@
             });
             downloadBtn.addEventListener('click', downloadSvg);
             copyBtn.addEventListener('click', copySvg);
+            saveBtn.addEventListener('click', saveDiagram);
+            cloneBtn.addEventListener('click', cloneDiagram);
+            deleteBtn.addEventListener('click', deleteDiagram);
+            downloadMdBtn.addEventListener('click', downloadMarkdown);
+            diagramSelect.addEventListener('change', onSelectChange);
+            nameInput.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    saveDiagram();
+                }
+            });
 
+            store = loadStore();
+            refreshSelect();
+            var active = findById(store.activeId);
+            if (active) {
+                nameInput.value = active.name;
+                inputEl.value = active.source;
+                lastLoadedSource = active.source;
+            } else {
+                store.activeId = null;
+                nameInput.value = '';
+                inputEl.value = SAMPLE_SOURCE;
+                lastLoadedSource = SAMPLE_SOURCE;
+                persistStore();
+                refreshSelect();
+            }
             render();
         })();
     </script>

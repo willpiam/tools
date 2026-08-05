@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copy 𝕏</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        h1 {
+            margin: 0 0 24px;
+            color: #60a5fa;
+            font-size: 2rem;
+        }
+        button {
+            background-color: #3b82f6;
+            color: #ffffff;
+            border: none;
+            padding: 16px 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.25rem;
+            transition: background-color 0.15s;
+        }
+        button:hover {
+            background-color: #2563eb;
+        }
+        button:active {
+            background-color: #1d4ed8;
+        }
+        #status {
+            margin-top: 16px;
+            min-height: 1.25em;
+            color: #9ca3af;
+            font-size: 14px;
+        }
+        #status.ok {
+            color: #34d399;
+        }
+        #status.err {
+            color: #f87171;
+        }
+    </style>
+</head>
+<body>
+    <h1>Copy 𝕏</h1>
+    <button type="button" id="copyBtn" title="Copy 𝕏 to the clipboard">Copy 𝕏</button>
+    <p id="status" aria-live="polite"></p>
+
+    <script>
+        const CHAR = '𝕏';
+        const btn = document.getElementById('copyBtn');
+        const status = document.getElementById('status');
+
+        function setStatus(message, kind) {
+            status.textContent = message;
+            status.className = kind || '';
+        }
+
+        async function copyX() {
+            try {
+                if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                    await navigator.clipboard.writeText(CHAR);
+                } else {
+                    const ta = document.createElement('textarea');
+                    ta.value = CHAR;
+                    ta.setAttribute('readonly', '');
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    const ok = document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    if (!ok) throw new Error('execCommand failed');
+                }
+                setStatus('Copied 𝕏 to clipboard.', 'ok');
+            } catch (err) {
+                setStatus('Could not copy to clipboard.', 'err');
+            }
+        }
+
+        btn.addEventListener('click', copyX);
+    </script>
+</body>
+</html>

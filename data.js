@@ -109,5 +109,10 @@ const tools = [
         title: "Mermaid Diagram Renderer",
         description: "Paste Mermaid syntax and view the rendered diagram; download or copy the SVG",
         path: "mermaidRenderer.html"
+    },
+    {
+        title: "Copy 𝕏",
+        description: "One-click copy of the 𝕏 character to the clipboard",
+        path: "copyX.html"
     }
 ];
