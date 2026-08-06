@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moon Phase</title>
+    <style>
+        :root {
+            --bg: #111827;
+            --panel: #1f2937;
+            --border: #374151;
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --accent: #60a5fa;
+            --accent-strong: #3b82f6;
+            --moon-lit: #f5e6c8;
+            --moon-shadow: #0f172a;
+            --moon-rim: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background:
+                radial-gradient(circle at 20% 15%, rgba(96, 165, 250, 0.16), transparent 28rem),
+                radial-gradient(circle at 80% 85%, rgba(148, 163, 184, 0.1), transparent 24rem),
+                var(--bg);
+            color: var(--text);
+        }
+
+        main {
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            color: #f9fafb;
+            font-size: clamp(1.75rem, 4vw, 2.25rem);
+            letter-spacing: -0.03em;
+        }
+
+        .subtitle {
+            margin: 0 0 28px;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .panel {
+            background: rgba(31, 41, 55, 0.86);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 20px;
+            padding: 28px 24px 24px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(18px);
+        }
+
+        .moon-wrap {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        #moonSvg {
+            width: min(220px, 70vw);
+            height: auto;
+            filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.45));
+        }
+
+        .phase-name {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #f9fafb;
+        }
+
+        .fraction {
+            margin: 10px 0 0;
+            font-size: 1.05rem;
+            color: var(--accent);
+        }
+
+        .cycle {
+            margin: 6px 0 0;
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+
+        .when {
+            margin: 14px 0 0;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            margin-top: 22px;
+        }
+
+        label {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: var(--muted);
+            flex: 1 1 200px;
+        }
+
+        input[type="datetime-local"] {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #111827;
+            color: var(--text);
+            font-size: 0.95rem;
+            font-family: inherit;
+        }
+
+        input[type="datetime-local"]:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: 1px;
+        }
+
+        button {
+            background-color: var(--accent-strong);
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-family: inherit;
+            align-self: flex-end;
+            transition: background-color 0.15s;
+        }
+
+        button:hover {
+            background-color: #2563eb;
+        }
+
+        button:active {
+            background-color: #1d4ed8;
+        }
+
+        button.live {
+            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.45);
+        }
+
+        .mode-hint {
+            margin-top: 12px;
+            min-height: 1.25em;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Moon Phase</h1>
+        <p class="subtitle">Current lunar phase with illuminated fraction</p>
+
+        <div class="panel">
+            <div class="moon-wrap" aria-hidden="true">
+                <svg id="moonSvg" viewBox="0 0 220 220" role="img">
+                    <defs>
+                        <clipPath id="moonClip">
+                            <circle cx="110" cy="110" r="100" />
+                        </clipPath>
+                    </defs>
+                    <circle cx="110" cy="110" r="100" fill="var(--moon-lit)" stroke="var(--moon-rim)" stroke-width="2" />
+                    <g clip-path="url(#moonClip)">
+                        <circle id="moonShadow" cx="110" cy="110" r="100" fill="var(--moon-shadow)" />
+                    </g>
+                </svg>
+            </div>
+
+            <p class="phase-name" id="phaseName">Full Moon</p>
+            <p class="fraction" id="illumination">0% illuminated</p>
+            <p class="cycle" id="cycleFraction">0.00 through cycle</p>
+            <p class="when" id="whenLabel"></p>
+
+            <div class="controls">
+                <label>
+                    Date &amp; time
+                    <input type="datetime-local" id="dateInput" />
+                </label>
+                <button type="button" id="nowBtn" class="live">Now</button>
+            </div>
+            <p class="mode-hint" id="modeHint">Live — updates every minute</p>
+        </div>
+    </main>
+
+    <script>
+        const SYNODIC_DAYS = 29.530588853;
+        // Known new moon: 2000-01-06 18:14 UTC
+        const KNOWN_NEW_MS = Date.UTC(2000, 0, 6, 18, 14, 0);
+
+        const PHASES = [
+            { name: 'New Moon', min: 0 },
+            { name: 'Waxing Crescent', min: 0.0625 },
+            { name: 'First Quarter', min: 0.1875 },
+            { name: 'Waxing Gibbous', min: 0.3125 },
+            { name: 'Full Moon', min: 0.4375 },
+            { name: 'Waning Gibbous', min: 0.5625 },
+            { name: 'Last Quarter', min: 0.6875 },
+            { name: 'Waning Crescent', min: 0.8125 },
+            { name: 'New Moon', min: 0.9375 }
+        ];
+
+        const moonShadow = document.getElementById('moonShadow');
+        const phaseName = document.getElementById('phaseName');
+        const illuminationEl = document.getElementById('illumination');
+        const cycleFractionEl = document.getElementById('cycleFraction');
+        const whenLabel = document.getElementById('whenLabel');
+        const dateInput = document.getElementById('dateInput');
+        const nowBtn = document.getElementById('nowBtn');
+        const modeHint = document.getElementById('modeHint');
+
+        let live = true;
+        let timerId = null;
+
+        function lunarPhase(date) {
+            const days = (date.getTime() - KNOWN_NEW_MS) / 86400000;
+            let phase = days / SYNODIC_DAYS;
+            phase -= Math.floor(phase);
+            if (phase < 0) phase += 1;
+            return phase;
+        }
+
+        function illuminatedFraction(phase) {
+            return (1 - Math.cos(phase * 2 * Math.PI)) / 2;
+        }
+
+        function phaseInfo(phase) {
+            let info = PHASES[0];
+            for (let i = 0; i < PHASES.length; i++) {
+                if (phase >= PHASES[i].min) info = PHASES[i];
+            }
+            return info;
+        }
+
+        /** Shadow circle offset: waxing moves left, waning moves right. */
+        function shadowOffset(phase, r) {
+            if (phase <= 0.5) {
+                return -2 * r * (phase / 0.5);
+            }
+            return 2 * r * ((1 - phase) / 0.5);
+        }
+
+        function toDatetimeLocalValue(date) {
+            const pad = (n) => String(n).padStart(2, '0');
+            return (
+                date.getFullYear() +
+                '-' + pad(date.getMonth() + 1) +
+                '-' + pad(date.getDate()) +
+                'T' + pad(date.getHours()) +
+                ':' + pad(date.getMinutes())
+            );
+        }
+
+        function formatWhen(date) {
+            return date.toLocaleString(undefined, {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+        }
+
+        function render(date) {
+            const phase = lunarPhase(date);
+            const illum = illuminatedFraction(phase);
+            const info = phaseInfo(phase);
+            const r = 100;
+            const cx = 110;
+            const cy = 110;
+            const dx = shadowOffset(phase, r);
+
+            moonShadow.setAttribute('cx', String(cx + dx));
+            moonShadow.setAttribute('cy', String(cy));
+
+            phaseName.textContent = info.name;
+            illuminationEl.textContent = Math.round(illum * 100) + '% illuminated';
+            cycleFractionEl.textContent = phase.toFixed(2) + ' through cycle';
+            whenLabel.textContent = formatWhen(date);
+
+            document.title = info.name + ' — Moon Phase';
+        }
+
+        function showLive() {
+            live = true;
+            nowBtn.classList.add('live');
+            modeHint.textContent = 'Live — updates every minute';
+            const now = new Date();
+            dateInput.value = toDatetimeLocalValue(now);
+            render(now);
+            scheduleLive();
+        }
+
+        function showPinned(date) {
+            live = false;
+            nowBtn.classList.remove('live');
+            modeHint.textContent = 'Pinned to selected date & time';
+            clearInterval(timerId);
+            timerId = null;
+            render(date);
+        }
+
+        function scheduleLive() {
+            clearInterval(timerId);
+            timerId = setInterval(() => {
+                if (!live) return;
+                const now = new Date();
+                dateInput.value = toDatetimeLocalValue(now);
+                render(now);
+            }, 60_000);
+        }
+
+        nowBtn.addEventListener('click', showLive);
+
+        dateInput.addEventListener('change', () => {
+            if (!dateInput.value) {
+                showLive();
+                return;
+            }
+            const date = new Date(dateInput.value);
+            if (Number.isNaN(date.getTime())) return;
+            showPinned(date);
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && live) {
+                const now = new Date();
+                dateInput.value = toDatetimeLocalValue(now);
+                render(now);
+            }
+        });
+
+        showLive();
+    </script>
+</body>
+</html>

@@ -114,5 +114,10 @@ const tools = [
         title: "Copy 𝕏",
         description: "One-click copy of the 𝕏 character to the clipboard",
         path: "copyX.html"
+    },
+    {
+        title: "Moon Phase",
+        description: "Current lunar phase with illuminated fraction and a visual moon disk",
+        path: "moonPhase.html"
     }
 ];
