@@ -4,16 +4,16 @@ overview: Search is limited because the picker only indexes CLDR short names wit
 todos:
   - id: build-script
     content: Add scripts/build-emoji-data.py to merge current emoji set with CLDR keywords, groups, and a small alias map; emit emojiData.js
-    status: pending
+    status: completed
   - id: regenerate-data
     content: Regenerate emojiData.js with name + keywords + group/subgroup per emoji
-    status: pending
+    status: completed
   - id: improve-matcher
     content: Update emojiPicker.html to word-prefix match, rank name > keyword > group, and search the richer haystack
-    status: pending
+    status: completed
   - id: verify-queries
     content: Spot-check previously failing queries (happy, poop, lol, usa, ok, us, animals) in the picker
-    status: pending
+    status: completed
 isProject: false
 ---
 

@@ -56,7 +56,7 @@ const tools = [
     },
     {
         title: "Emoji Picker",
-        description: "Search Unicode emoji by name and copy them with one tap",
+        description: "Search Unicode emoji by name, keyword, or category and copy them with one tap",
         path: "emojiPicker.html"
     },
     {
@@ -119,5 +119,10 @@ const tools = [
         title: "Moon Phase",
         description: "Current lunar phase with illuminated fraction and a visual moon disk",
         path: "moonPhase.html"
+    },
+    {
+        title: "Image Loop",
+        description: "Load a folder of images and play them as a fullscreen loop",
+        path: "imageLoop.html"
     }
 ];

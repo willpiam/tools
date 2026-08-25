@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Loop</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        html, body {
+            margin: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        }
+        button {
+            background-color: #2563eb;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button.secondary {
+            background-color: #4b5563;
+        }
+        button:hover {
+            filter: brightness(1.08);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        label.inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #d1d5db;
+            cursor: pointer;
+            user-select: none;
+        }
+        input[type="range"] {
+            width: 120px;
+            accent-color: #2563eb;
+            vertical-align: middle;
+        }
+        input[type="number"] {
+            width: 64px;
+            background: #1f2937;
+            border: 1px solid #4b5563;
+            border-radius: 4px;
+            color: #e0e0e0;
+            padding: 4px 6px;
+            font-size: 13px;
+        }
+
+        #landing {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100%;
+            padding: 24px;
+            gap: 16px;
+        }
+        #landing.hidden,
+        #viewer.hidden {
+            display: none;
+        }
+        h1 {
+            margin: 0 0 8px;
+            color: #60a5fa;
+            font-size: 28px;
+        }
+        .hint {
+            color: #9ca3af;
+            font-size: 14px;
+            text-align: center;
+            max-width: 480px;
+            line-height: 1.5;
+        }
+        .dropzone {
+            width: min(480px, 100%);
+            border: 2px dashed #4b5563;
+            border-radius: 10px;
+            background-color: #2d2d2d;
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.15s, background-color 0.15s;
+        }
+        .dropzone:hover,
+        .dropzone.dragover {
+            border-color: #60a5fa;
+            background-color: #363636;
+        }
+        .dropzone p {
+            margin: 0 0 12px;
+            color: #d1d5db;
+        }
+        .dropzone .sub {
+            color: #9ca3af;
+            font-size: 13px;
+        }
+        #folderInput {
+            display: none;
+        }
+        .status {
+            min-height: 1.2em;
+            font-size: 14px;
+            color: #fca5a5;
+            text-align: center;
+            max-width: 480px;
+        }
+
+        #viewer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            user-select: none;
+        }
+        #viewer.chrome-hidden {
+            cursor: none;
+        }
+        .stage {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: #000;
+        }
+        .stage img {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            pointer-events: none;
+            -webkit-user-drag: none;
+        }
+        .toolbar {
+            position: absolute;
+            left: 50%;
+            bottom: 16px;
+            transform: translateX(-50%);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 12px;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 14px;
+            background: rgba(45, 45, 45, 0.92);
+            border: 1px solid #374151;
+            border-radius: 10px;
+            z-index: 2;
+            max-width: calc(100% - 24px);
+            transition: opacity 0.35s ease, visibility 0.35s ease;
+        }
+        #viewer.chrome-hidden .toolbar {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .meta {
+            font-size: 13px;
+            color: #d1d5db;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+            max-width: 220px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .speed-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #d1d5db;
+        }
+        .wake-status {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+        .wake-status.active {
+            color: #86efac;
+        }
+        .wake-status.warn {
+            color: #fcd34d;
+        }
+    </style>
+</head>
+<body>
+    <section id="landing">
+        <h1>Image Loop</h1>
+        <p class="hint">
+            Choose a folder of images to play as a fullscreen loop.
+            Press F11 for browser fullscreen. Controls hide after 15 seconds without mouse movement.
+        </p>
+        <label class="dropzone" id="dropzone" for="folderInput">
+            <p>Choose a folder</p>
+            <p class="sub">or drop a folder here if your browser allows it</p>
+        </label>
+        <input type="file" id="folderInput" webkitdirectory multiple>
+        <div class="status" id="landingStatus" aria-live="polite"></div>
+    </section>
+
+    <section id="viewer" class="hidden" aria-label="Image slideshow">
+        <div class="stage" id="stage">
+            <img id="image" alt="Slideshow image">
+        </div>
+        <div class="toolbar" id="toolbar">
+            <span class="meta" id="metaLabel" title="">—</span>
+            <button type="button" class="secondary" id="prevBtn" title="Previous (←)">Prev</button>
+            <button type="button" id="playPauseBtn" title="Play/Pause (Space)">Pause</button>
+            <button type="button" class="secondary" id="nextBtn" title="Next (→)">Next</button>
+            <div class="speed-group" title="Seconds per image">
+                <span>Speed</span>
+                <input type="range" id="speedRange" min="0.25" max="60" step="0.25" value="5">
+                <input type="number" id="speedNumber" min="0.25" max="60" step="0.25" value="5">
+                <span>s</span>
+            </div>
+            <label class="inline">
+                <input type="checkbox" id="shuffleToggle">
+                Shuffle
+            </label>
+            <label class="inline">
+                <input type="checkbox" id="wakeToggle" checked>
+                Keep screen awake
+            </label>
+            <span class="wake-status" id="wakeStatus" aria-live="polite"></span>
+            <button type="button" class="secondary" id="fullscreenBtn">Fullscreen</button>
+            <button type="button" class="secondary" id="newFolderBtn">New folder</button>
+        </div>
+    </section>
+
+    <script>
+        const IDLE_MS = 15000;
+        const MIN_SECONDS = 0.25;
+        const MAX_SECONDS = 60;
+        const DEFAULT_SECONDS = 5;
+
+        const IMAGE_MIME = new Set([
+            "image/jpeg",
+            "image/png",
+            "image/gif",
+            "image/webp",
+            "image/avif",
+            "image/bmp",
+            "image/svg+xml",
+            "image/x-icon",
+            "image/vnd.microsoft.icon",
+        ]);
+        const IMAGE_EXT = /\.(jpe?g|png|gif|webp|avif|bmp|svg|ico)$/i;
+
+        const landingEl = document.getElementById("landing");
+        const viewerEl = document.getElementById("viewer");
+        const dropzone = document.getElementById("dropzone");
+        const folderInput = document.getElementById("folderInput");
+        const landingStatus = document.getElementById("landingStatus");
+        const image = document.getElementById("image");
+        const toolbar = document.getElementById("toolbar");
+        const metaLabel = document.getElementById("metaLabel");
+        const prevBtn = document.getElementById("prevBtn");
+        const nextBtn = document.getElementById("nextBtn");
+        const playPauseBtn = document.getElementById("playPauseBtn");
+        const speedRange = document.getElementById("speedRange");
+        const speedNumber = document.getElementById("speedNumber");
+        const shuffleToggle = document.getElementById("shuffleToggle");
+        const wakeToggle = document.getElementById("wakeToggle");
+        const wakeStatus = document.getElementById("wakeStatus");
+        const fullscreenBtn = document.getElementById("fullscreenBtn");
+        const newFolderBtn = document.getElementById("newFolderBtn");
+
+        /** @type {{ file: File, path: string }[]} */
+        let files = [];
+        /** @type {number[]} */
+        let order = [];
+        let index = 0;
+        let playing = true;
+        let secondsPerImage = DEFAULT_SECONDS;
+        let timerId = null;
+        let objectUrl = null;
+        let preloadUrl = null;
+        let folderName = "";
+        let idleTimerId = null;
+        let wakeLock = null;
+        let wakeDesired = true;
+
+        function isImageFile(file) {
+            if (file.type && IMAGE_MIME.has(file.type)) return true;
+            if (file.type && file.type.startsWith("image/")) return true;
+            const path = file.webkitRelativePath || file.name || "";
+            return IMAGE_EXT.test(path);
+        }
+
+        function filePath(file) {
+            return file.webkitRelativePath || file.name || "";
+        }
+
+        function clampSeconds(value) {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return DEFAULT_SECONDS;
+            return Math.min(MAX_SECONDS, Math.max(MIN_SECONDS, n));
+        }
+
+        function revokeCurrentUrl() {
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+                objectUrl = null;
+            }
+        }
+
+        function revokePreloadUrl() {
+            if (preloadUrl) {
+                URL.revokeObjectURL(preloadUrl);
+                preloadUrl = null;
+            }
+        }
+
+        function revokeAllUrls() {
+            revokeCurrentUrl();
+            revokePreloadUrl();
+        }
+
+        function clearAdvanceTimer() {
+            if (timerId !== null) {
+                clearTimeout(timerId);
+                timerId = null;
+            }
+        }
+
+        function scheduleAdvance() {
+            clearAdvanceTimer();
+            if (!playing || files.length <= 1) return;
+            timerId = setTimeout(() => {
+                goTo(index + 1);
+            }, secondsPerImage * 1000);
+        }
+
+        function rebuildOrder(keepCurrentPath) {
+            const currentPath = keepCurrentPath && order.length
+                ? files[order[index]]?.path
+                : null;
+            order = files.map((_, i) => i);
+            if (shuffleToggle.checked) {
+                for (let i = order.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    const tmp = order[i];
+                    order[i] = order[j];
+                    order[j] = tmp;
+                }
+            }
+            if (currentPath) {
+                const found = order.findIndex((i) => files[i].path === currentPath);
+                index = found >= 0 ? found : 0;
+            } else {
+                index = 0;
+            }
+        }
+
+        function updateMeta() {
+            if (!files.length) {
+                metaLabel.textContent = "—";
+                metaLabel.title = "";
+                return;
+            }
+            const entry = files[order[index]];
+            const n = index + 1;
+            const total = files.length;
+            const name = folderName || "Folder";
+            metaLabel.textContent = `${name} · ${n} / ${total}`;
+            metaLabel.title = entry ? entry.path : "";
+        }
+
+        function updatePlayPauseLabel() {
+            playPauseBtn.textContent = playing ? "Pause" : "Play";
+        }
+
+        function preloadNext() {
+            revokePreloadUrl();
+            if (files.length <= 1) return;
+            const nextIndex = (index + 1) % order.length;
+            const entry = files[order[nextIndex]];
+            if (!entry) return;
+            preloadUrl = URL.createObjectURL(entry.file);
+            const img = new Image();
+            img.src = preloadUrl;
+        }
+
+        function showImageAt(orderIndex) {
+            if (!files.length) return;
+            index = ((orderIndex % order.length) + order.length) % order.length;
+            const entry = files[order[index]];
+            revokeCurrentUrl();
+            objectUrl = URL.createObjectURL(entry.file);
+            image.onload = () => {
+                updateMeta();
+                preloadNext();
+                scheduleAdvance();
+            };
+            image.onerror = () => {
+                updateMeta();
+                // Skip broken files so a bad image does not stall the loop.
+                if (files.length > 1) {
+                    scheduleAdvance();
+                }
+            };
+            image.src = objectUrl;
+            image.alt = entry.path;
+            updateMeta();
+        }
+
+        function goTo(orderIndex) {
+            clearAdvanceTimer();
+            showImageAt(orderIndex);
+        }
+
+        function setChromeHidden(hidden) {
+            viewerEl.classList.toggle("chrome-hidden", hidden);
+        }
+
+        function resetIdleTimer() {
+            setChromeHidden(false);
+            if (idleTimerId !== null) {
+                clearTimeout(idleTimerId);
+            }
+            idleTimerId = setTimeout(() => {
+                if (!viewerEl.classList.contains("hidden")) {
+                    setChromeHidden(true);
+                }
+            }, IDLE_MS);
+        }
+
+        function clearIdleTimer() {
+            if (idleTimerId !== null) {
+                clearTimeout(idleTimerId);
+                idleTimerId = null;
+            }
+            setChromeHidden(false);
+        }
+
+        function setWakeStatus(text, kind) {
+            wakeStatus.textContent = text;
+            wakeStatus.classList.remove("active", "warn");
+            if (kind) wakeStatus.classList.add(kind);
+        }
+
+        async function releaseWakeLock() {
+            if (!wakeLock) {
+                if (!("wakeLock" in navigator)) {
+                    setWakeStatus("Wake lock unavailable", "warn");
+                } else if (!wakeDesired) {
+                    setWakeStatus("Released");
+                }
+                return;
+            }
+            try {
+                await wakeLock.release();
+            } catch (_) {
+                /* ignore */
+            }
+            wakeLock = null;
+            setWakeStatus("Released");
+        }
+
+        async function requestWakeLock() {
+            if (!wakeDesired) {
+                await releaseWakeLock();
+                return;
+            }
+            if (!("wakeLock" in navigator)) {
+                setWakeStatus("Wake lock unavailable", "warn");
+                return;
+            }
+            if (document.visibilityState !== "visible") {
+                setWakeStatus("Released");
+                return;
+            }
+            try {
+                wakeLock = await navigator.wakeLock.request("screen");
+                setWakeStatus("Awake", "active");
+                wakeLock.addEventListener("release", () => {
+                    wakeLock = null;
+                    if (wakeDesired && document.visibilityState === "visible") {
+                        setWakeStatus("Released");
+                    }
+                });
+            } catch (err) {
+                wakeLock = null;
+                setWakeStatus("Wake lock failed", "warn");
+                console.warn("Wake lock request failed:", err);
+            }
+        }
+
+        function showViewer() {
+            landingEl.classList.add("hidden");
+            viewerEl.classList.remove("hidden");
+            playing = true;
+            updatePlayPauseLabel();
+            wakeDesired = wakeToggle.checked;
+            requestWakeLock();
+            resetIdleTimer();
+            goTo(0);
+        }
+
+        function showLanding(message) {
+            clearAdvanceTimer();
+            clearIdleTimer();
+            releaseWakeLock();
+            revokeAllUrls();
+            files = [];
+            order = [];
+            index = 0;
+            folderName = "";
+            image.removeAttribute("src");
+            folderInput.value = "";
+            viewerEl.classList.add("hidden");
+            landingEl.classList.remove("hidden");
+            landingStatus.textContent = message || "";
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+
+        function loadFolderFromFileList(fileList) {
+            const list = Array.from(fileList || []);
+            const images = list
+                .filter(isImageFile)
+                .map((file) => ({ file, path: filePath(file) }))
+                .sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: "base" }));
+
+            if (!images.length) {
+                landingStatus.textContent = "No displayable images found in that folder.";
+                return;
+            }
+
+            const firstPath = images[0].path;
+            const slash = firstPath.indexOf("/");
+            folderName = slash >= 0 ? firstPath.slice(0, slash) : "Folder";
+
+            files = images;
+            rebuildOrder(false);
+            landingStatus.textContent = "";
+            showViewer();
+        }
+
+        folderInput.addEventListener("change", () => {
+            if (folderInput.files && folderInput.files.length) {
+                loadFolderFromFileList(folderInput.files);
+            }
+        });
+
+        ["dragenter", "dragover"].forEach((type) => {
+            dropzone.addEventListener(type, (e) => {
+                e.preventDefault();
+                dropzone.classList.add("dragover");
+            });
+        });
+        ["dragleave", "drop"].forEach((type) => {
+            dropzone.addEventListener(type, (e) => {
+                e.preventDefault();
+                dropzone.classList.remove("dragover");
+            });
+        });
+        dropzone.addEventListener("drop", (e) => {
+            const dt = e.dataTransfer;
+            if (!dt) return;
+            if (dt.files && dt.files.length) {
+                loadFolderFromFileList(dt.files);
+            }
+        });
+
+        prevBtn.addEventListener("click", () => goTo(index - 1));
+        nextBtn.addEventListener("click", () => goTo(index + 1));
+
+        playPauseBtn.addEventListener("click", () => {
+            playing = !playing;
+            updatePlayPauseLabel();
+            if (playing) {
+                scheduleAdvance();
+            } else {
+                clearAdvanceTimer();
+            }
+        });
+
+        function applySpeed(value, syncFrom) {
+            secondsPerImage = clampSeconds(value);
+            const display = String(secondsPerImage);
+            if (syncFrom !== "range") speedRange.value = display;
+            if (syncFrom !== "number") speedNumber.value = display;
+            if (playing) scheduleAdvance();
+        }
+
+        speedRange.addEventListener("input", () => applySpeed(speedRange.value, "range"));
+        speedNumber.addEventListener("change", () => applySpeed(speedNumber.value, "number"));
+        speedNumber.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                applySpeed(speedNumber.value, "number");
+            }
+        });
+
+        shuffleToggle.addEventListener("change", () => {
+            rebuildOrder(true);
+            goTo(index);
+        });
+
+        wakeToggle.addEventListener("change", () => {
+            wakeDesired = wakeToggle.checked;
+            if (wakeDesired) {
+                requestWakeLock();
+            } else {
+                releaseWakeLock();
+            }
+        });
+
+        newFolderBtn.addEventListener("click", () => showLanding(""));
+
+        fullscreenBtn.addEventListener("click", async () => {
+            try {
+                if (!document.fullscreenElement) {
+                    await viewerEl.requestFullscreen();
+                } else {
+                    await document.exitFullscreen();
+                }
+            } catch (_) {
+                /* Fullscreen may be blocked. */
+            }
+        });
+
+        document.addEventListener("fullscreenchange", () => {
+            fullscreenBtn.textContent = document.fullscreenElement ? "Exit full" : "Fullscreen";
+        });
+
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible" && wakeDesired && !viewerEl.classList.contains("hidden")) {
+                requestWakeLock();
+            }
+        });
+
+        function onUserActivity(e) {
+            if (viewerEl.classList.contains("hidden")) return;
+            // Mouse movement alone should reveal chrome; key/click also reset idle.
+            if (e.type === "mousemove" || e.type === "pointermove" || e.type === "keydown" || e.type === "click") {
+                resetIdleTimer();
+            }
+        }
+
+        document.addEventListener("mousemove", onUserActivity);
+        document.addEventListener("pointermove", onUserActivity);
+        document.addEventListener("keydown", onUserActivity);
+        toolbar.addEventListener("click", onUserActivity);
+
+        document.addEventListener("keydown", (e) => {
+            if (viewerEl.classList.contains("hidden")) return;
+            const tag = (e.target && e.target.tagName) || "";
+            if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+            if (e.key === " " || e.code === "Space") {
+                e.preventDefault();
+                playPauseBtn.click();
+                return;
+            }
+            if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                goTo(index - 1);
+                return;
+            }
+            if (e.key === "ArrowRight") {
+                e.preventDefault();
+                goTo(index + 1);
+                return;
+            }
+            if (e.key === "Escape" && !document.fullscreenElement) {
+                showLanding("");
+            }
+        });
+
+        window.addEventListener("beforeunload", () => {
+            clearAdvanceTimer();
+            clearIdleTimer();
+            revokeAllUrls();
+            if (wakeLock) {
+                wakeLock.release().catch(() => {});
+            }
+        });
+
+        if (!("wakeLock" in navigator)) {
+            setWakeStatus("Wake lock unavailable", "warn");
+        }
+    </script>
+</body>
+</html>

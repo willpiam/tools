@@ -222,11 +222,11 @@
 </head>
 <body>
     <h1>Emoji Picker</h1>
-    <p class="subtitle">Search by CLDR short name, tap or click an emoji to copy it. Everything runs in your browser.</p>
+    <p class="subtitle">Search by name, keyword, or category. Tap or click an emoji to copy it. Everything runs in your browser.</p>
 
     <div class="search-wrap">
         <label for="q" class="visually-hidden">Search emojis</label>
-        <input type="search" id="q" placeholder="Search (e.g. grinning, heart, flag)" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+        <input type="search" id="q" placeholder="Search (e.g. happy, poop, heart, usa)" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
         <div class="meta">
             <span id="count" aria-live="polite"></span>
             <span id="status" role="status" aria-live="polite"></span>
@@ -242,9 +242,46 @@
         (function () {
             const PAGE = 200;
             const raw = window.EMOJI_DATA || [];
-            const items = raw.map(function (row) {
-                return { char: row[0], name: row[1], key: (row[1] + ' ' + row[0]).toLowerCase() };
-            });
+
+            function normalizeSearchText(text) {
+                return String(text || '')
+                    .replace(/\u229B\s*/g, '')
+                    .toLowerCase();
+            }
+
+            function tokenizeWords(text) {
+                return normalizeSearchText(text)
+                    .split(/[^a-z0-9+#]+/)
+                    .filter(Boolean);
+            }
+
+            function buildItem(row, index) {
+                const char = row[0];
+                const name = row[1];
+                const keywords = String(row[2] || '')
+                    .split('|')
+                    .map(function (part) { return part.trim(); })
+                    .filter(Boolean);
+                const group = row[3] || '';
+                const subgroup = row[4] || '';
+                const nameWords = tokenizeWords(name);
+                const keywordWords = keywords.reduce(function (acc, keyword) {
+                    return acc.concat(tokenizeWords(keyword));
+                }, []);
+                const groupWords = tokenizeWords(group + ' ' + subgroup.replace(/-/g, ' '));
+                return {
+                    char: char,
+                    name: name,
+                    group: group,
+                    subgroup: subgroup,
+                    index: index,
+                    nameWords: nameWords,
+                    keywordWords: keywordWords,
+                    groupWords: groupWords
+                };
+            }
+
+            const items = raw.map(buildItem);
 
             const qEl = document.getElementById('q');
             const gridEl = document.getElementById('grid');
@@ -258,11 +295,98 @@
             let debounceId = null;
             let statusClearId = null;
 
-            function wordsMatch(nameLower, parts) {
-                for (let i = 0; i < parts.length; i++) {
-                    if (parts[i] && nameLower.indexOf(parts[i]) === -1) return false;
+            function allowsPrefix(word, token) {
+                if (word.indexOf(token) !== 0) {
+                    return false;
                 }
-                return true;
+                if (word === token) {
+                    return true;
+                }
+                if (token.length >= 4) {
+                    return true;
+                }
+                return word.length <= token.length + 1;
+            }
+
+            function wordMatchKind(word, token) {
+                if (word === token) {
+                    return 'exact';
+                }
+                if (allowsPrefix(word, token)) {
+                    return 'prefix';
+                }
+                if (token.length >= 4 && word.indexOf(token.slice(0, 4)) === 0) {
+                    return 'prefix';
+                }
+                return null;
+            }
+
+            function tokenScore(token, item) {
+                let best = -1;
+                let i;
+                let word;
+                let kind;
+
+                if (item.nameWords.length) {
+                    kind = wordMatchKind(item.nameWords[0], token);
+                    if (kind === 'prefix') {
+                        best = Math.max(best, 950);
+                    } else if (kind === 'exact') {
+                        best = Math.max(best, 940);
+                    }
+                }
+
+                for (i = 0; i < item.nameWords.length; i++) {
+                    word = item.nameWords[i];
+                    kind = wordMatchKind(word, token);
+                    if (kind === 'exact') {
+                        if (i === item.nameWords.length - 1 && item.nameWords.length > 1) {
+                            best = Math.max(best, 760);
+                        } else {
+                            best = Math.max(best, 900);
+                        }
+                    } else if (kind === 'prefix' && i > 0) {
+                        best = Math.max(best, 860);
+                    }
+                }
+
+                for (i = 0; i < item.keywordWords.length; i++) {
+                    word = item.keywordWords[i];
+                    kind = wordMatchKind(word, token);
+                    if (kind === 'exact') {
+                        best = Math.max(best, 800);
+                    } else if (kind === 'prefix') {
+                        best = Math.max(best, 700);
+                    }
+                }
+
+                for (i = 0; i < item.groupWords.length; i++) {
+                    word = item.groupWords[i];
+                    kind = wordMatchKind(word, token);
+                    if (kind === 'exact') {
+                        best = Math.max(best, 600);
+                    } else if (kind === 'prefix') {
+                        best = Math.max(best, 500);
+                    }
+                }
+
+                return best;
+            }
+
+            function matchScore(item, tokens) {
+                let total = 0;
+                let i;
+                let score;
+
+                for (i = 0; i < tokens.length; i++) {
+                    score = tokenScore(tokens[i], item);
+                    if (score < 0) {
+                        return -1;
+                    }
+                    total += score;
+                }
+
+                return total;
             }
 
             function runFilter() {
@@ -271,11 +395,25 @@
                     filtered = items.slice();
                     return;
                 }
-                const parts = q.split(/\s+/).filter(Boolean);
-                filtered = [];
+
+                const tokens = q.split(/\s+/).filter(Boolean);
+                const results = [];
+
                 for (let i = 0; i < items.length; i++) {
-                    if (wordsMatch(items[i].key, parts)) filtered.push(items[i]);
+                    const score = matchScore(items[i], tokens);
+                    if (score >= 0) {
+                        results.push({ item: items[i], score: score });
+                    }
                 }
+
+                results.sort(function (a, b) {
+                    if (b.score !== a.score) {
+                        return b.score - a.score;
+                    }
+                    return a.item.index - b.item.index;
+                });
+
+                filtered = results.map(function (entry) { return entry.item; });
             }
 
             function setStatus(msg) {
