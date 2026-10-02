@@ -106,7 +106,7 @@
 <body>
     <h1>$computerman's tools</h1>
     <div class="tools-container">
-        <input type="search" id="tool-search" class="search-input" placeholder="Search tools…" autofocus autocomplete="off">
+        <input type="search" id="tool-search" class="search-input" placeholder="Search tools…" autocomplete="off">
         <ul id="tools-list">
             <!-- Tools will be loaded dynamically -->
         </ul>
@@ -156,6 +156,16 @@
 
         searchInput.addEventListener('input', applyFilter);
         searchInput.addEventListener('search', applyFilter);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+            const el = document.activeElement;
+            const tag = el && el.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable) return;
+            e.preventDefault();
+            searchInput.focus();
+        });
+
         renderTools(tools);
     </script>
 </body>

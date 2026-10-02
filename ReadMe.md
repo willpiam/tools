@@ -2,6 +2,8 @@
 
 A collection of tools I find useful!
 
+On the index page, press `/` to focus the search box.
+
 ## To add
 
 ### A hash tool
