@@ -74,14 +74,43 @@
         .footer a:hover {
             color: #9ca3af;
         }
+        .search-input {
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+            padding: 12px 14px;
+            border: 1px solid #4b5563;
+            border-radius: 6px;
+            background-color: #363636;
+            color: #e0e0e0;
+            font-size: 16px;
+            font-family: inherit;
+            outline: none;
+        }
+        .search-input::placeholder {
+            color: #9ca3af;
+        }
+        .search-input:focus {
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.35);
+        }
+        .empty-state {
+            margin: 0;
+            padding: 15px;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <h1>$computerman's tools</h1>
     <div class="tools-container">
+        <input type="search" id="tool-search" class="search-input" placeholder="Search tools…" autofocus autocomplete="off">
         <ul id="tools-list">
             <!-- Tools will be loaded dynamically -->
         </ul>
+        <p id="empty-state" class="empty-state" hidden>No tools match</p>
     </div>
 
     <div class="footer">
@@ -91,6 +120,9 @@
     <script src="data.js"></script>
     <script>
         const toolsList = document.getElementById('tools-list');
+        const searchInput = document.getElementById('tool-search');
+        const emptyState = document.getElementById('empty-state');
+
         function resolveToolHref(tool) {
             if (tool.mode === "external") {
                 return tool.url || "#";
@@ -98,14 +130,33 @@
             return tool.path || "#";
         }
 
-        tools.forEach(tool => {
-            const li = document.createElement('li');
-            li.innerHTML = `
-                <a href="${resolveToolHref(tool)}" target="_blank" rel="noopener noreferrer">${tool.title}</a>
-                <div class="tool-description">${tool.description}</div>
-            `;
-            toolsList.appendChild(li);
-        });
+        function renderTools(list) {
+            toolsList.replaceChildren();
+            list.forEach(tool => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <a href="${resolveToolHref(tool)}" target="_blank" rel="noopener noreferrer">${tool.title}</a>
+                    <div class="tool-description">${tool.description}</div>
+                `;
+                toolsList.appendChild(li);
+            });
+            emptyState.hidden = list.length > 0;
+        }
+
+        function applyFilter() {
+            const q = searchInput.value.trim().toLowerCase();
+            const filtered = !q
+                ? tools
+                : tools.filter(t =>
+                    t.title.toLowerCase().includes(q) ||
+                    t.description.toLowerCase().includes(q)
+                );
+            renderTools(filtered);
+        }
+
+        searchInput.addEventListener('input', applyFilter);
+        searchInput.addEventListener('search', applyFilter);
+        renderTools(tools);
     </script>
 </body>
 </html>
